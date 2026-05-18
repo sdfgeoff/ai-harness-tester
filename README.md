@@ -1,0 +1,45 @@
+# Harness Test
+
+Harness Test compares coding harnesses against the same local model by running each harness in Docker, routing LLM traffic through an orchestrator proxy, and preserving run artifacts.
+
+The current implementation target is v0. v0 is complete when the smoke harness and smoke test can run through the final CLI and produce the expected batch/run artifacts.
+
+## Smoke Target
+
+Build the smoke harness:
+
+```sh
+./build-harnesses.sh
+```
+
+Intended final smoke command:
+
+```sh
+orchestrator run --tests smoke --harnesses smoke --models smoke-local --config config.json
+```
+
+Expected final artifact shape:
+
+```text
+results/
+  <batch_id>/
+    summary.json
+    config.json
+    runs/
+      <run_id>/
+        results.json
+        working_dir/
+        logs/
+          harness.log
+          proxy.ndjson
+        PROMPT.md
+```
+
+## Smoke Test
+
+The smoke test lives in `tests/smoke/` and contains:
+
+- `initial_state.zip`
+- `PROMPT.md`
+
+The harness image is built from `harnesses/smoke/Dockerfile` and tagged as `harness-test/smoke:latest`.
