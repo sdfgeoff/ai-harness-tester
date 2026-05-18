@@ -58,3 +58,11 @@ Show CLI help:
 ```sh
 cargo run -p orchestrator-cli -- --help
 ```
+
+Run a Docker image directly:
+
+```sh
+cargo run -p orchestrator-cli -- run-image harness-test/smoke:latest
+```
+
+At this stage the command only runs the image and reports its exit status. Later tickets add result artifacts, working directory mounts, prompt handling, and proxy wiring.
