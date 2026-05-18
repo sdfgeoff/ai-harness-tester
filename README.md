@@ -43,3 +43,18 @@ The smoke test lives in `tests/smoke/` and contains:
 - `PROMPT.md`
 
 The harness image is built from `harnesses/smoke/Dockerfile` and tagged as `harness-test/smoke:latest`.
+
+## Development
+
+Check the Rust workspace:
+
+```sh
+cargo check
+cargo test
+```
+
+Show CLI help:
+
+```sh
+cargo run -p orchestrator-cli -- --help
+```
