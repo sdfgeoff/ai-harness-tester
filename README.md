@@ -66,3 +66,13 @@ cargo run -p orchestrator-cli -- run-image harness-test/smoke:latest
 ```
 
 At this stage the command only runs the image and reports its exit status. Later tickets add result artifacts, working directory mounts, prompt handling, and proxy wiring.
+
+The command writes a minimal run artifact:
+
+```text
+results/
+  <run_id>/
+    results.json
+```
+
+At this stage `results.json` records run ID, status, timestamps, duration, and harness exit code.

@@ -1,8 +1,15 @@
 use clap::Parser;
+use serde::Serialize;
 use std::{
+    fs::{self, File},
+    path::{Path, PathBuf},
     process::{Command, ExitCode},
-    time::Instant,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+use time::{format_description::FormatItem, macros::format_description, OffsetDateTime};
+
+const RUN_ID_TIME_FORMAT: &[FormatItem<'_>] =
+    format_description!("[year][month][day]T[hour][minute][second]Z");
 
 #[derive(Debug, Parser)]
 #[command(
@@ -41,7 +48,17 @@ fn run(cli: Cli) -> Result<(), String> {
 }
 
 fn run_image(image: &str) -> Result<(), String> {
+    let started_at = OffsetDateTime::now_utc();
     let started = Instant::now();
+    let run_id = run_id(started_at, image)?;
+    let run_dir = PathBuf::from("results").join(&run_id);
+    fs::create_dir_all(&run_dir).map_err(|error| {
+        format!(
+            "failed to create run directory {}: {error}",
+            run_dir.display()
+        )
+    })?;
+
     println!("running Docker image: {image}");
 
     let status = Command::new("docker")
@@ -52,6 +69,23 @@ fn run_image(image: &str) -> Result<(), String> {
         .map_err(|error| format!("failed to start docker: {error}"))?;
 
     let duration = started.elapsed();
+    let finished_at = OffsetDateTime::now_utc();
+    let harness_exit_code = status.code();
+    let run_status = match harness_exit_code {
+        Some(0) => RunStatus::Completed,
+        _ => RunStatus::Failed,
+    };
+    let result = RunResult {
+        run_id: run_id.clone(),
+        status: run_status,
+        harness_exit_code,
+        started_at: format_timestamp(started_at)?,
+        finished_at: format_timestamp(finished_at)?,
+        duration_ms: duration_ms(duration),
+    };
+    write_results(&run_dir, &result)?;
+    println!("wrote {}", run_dir.join("results.json").display());
+
     match status.code() {
         Some(0) => {
             println!("container completed successfully in {:.2?}", duration);
@@ -68,6 +102,81 @@ fn run_image(image: &str) -> Result<(), String> {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct RunResult {
+    run_id: String,
+    status: RunStatus,
+    harness_exit_code: Option<i32>,
+    started_at: String,
+    finished_at: String,
+    duration_ms: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum RunStatus {
+    Completed,
+    Failed,
+}
+
+fn write_results(run_dir: &Path, result: &RunResult) -> Result<(), String> {
+    let path = run_dir.join("results.json");
+    let file = File::create(&path)
+        .map_err(|error| format!("failed to create results file {}: {error}", path.display()))?;
+    serde_json::to_writer_pretty(file, result)
+        .map_err(|error| format!("failed to write results file {}: {error}", path.display()))
+}
+
+fn run_id(started_at: OffsetDateTime, image: &str) -> Result<String, String> {
+    let timestamp = started_at
+        .format(RUN_ID_TIME_FORMAT)
+        .map_err(|error| format!("failed to format run timestamp: {error}"))?;
+    let image = sanitize_fragment(image);
+    let suffix = short_suffix();
+    Ok(format!("{timestamp}_{image}_{suffix}"))
+}
+
+fn sanitize_fragment(value: &str) -> String {
+    let mut sanitized = String::new();
+    let mut last_was_dash = false;
+
+    for character in value.chars() {
+        let next = if character.is_ascii_alphanumeric() {
+            last_was_dash = false;
+            Some(character.to_ascii_lowercase())
+        } else if !last_was_dash {
+            last_was_dash = true;
+            Some('-')
+        } else {
+            None
+        };
+
+        if let Some(character) = next {
+            sanitized.push(character);
+        }
+    }
+
+    sanitized.trim_matches('-').to_owned()
+}
+
+fn short_suffix() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    format!("{:06x}", nanos & 0x00ff_ffff)
+}
+
+fn format_timestamp(timestamp: OffsetDateTime) -> Result<String, String> {
+    timestamp
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|error| format!("failed to format timestamp: {error}"))
+}
+
+fn duration_ms(duration: Duration) -> u64 {
+    duration.as_millis().try_into().unwrap_or(u64::MAX)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,5 +185,13 @@ mod tests {
     #[test]
     fn clap_command_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn sanitizes_run_id_fragments() {
+        assert_eq!(
+            sanitize_fragment("harness-test/smoke:latest"),
+            "harness-test-smoke-latest"
+        );
     }
 }
