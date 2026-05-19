@@ -23,7 +23,7 @@ cat > "${config_dir}/models.json" <<EOF
 {
   "providers": {
     "orchestrator": {
-      "baseUrl": "${LLM_URL}",
+      "baseUrl": "${LLM_URL}/v1",
       "api": "openai-completions",
       "apiKey": "${LLM_API_KEY}",
       "models": [
