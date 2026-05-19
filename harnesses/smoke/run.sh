@@ -7,6 +7,8 @@ prompt_file="${INITIAL_PROMPT_FILE:-/prompt/PROMPT.md}"
 echo "smoke harness starting"
 echo "workdir=${workdir}"
 echo "prompt_file=${prompt_file}"
+echo "llm_url=${LLM_URL:-}"
+echo "llm_api_key_present=$([ -n "${LLM_API_KEY:-}" ] && echo yes || echo no)"
 
 if [ ! -d "${workdir}" ]; then
   echo "missing workdir: ${workdir}" >&2
@@ -24,6 +26,8 @@ fi
   echo "smoke harness completed"
   printf "prompt_first_line="
   sed -n '1p' "${prompt_file}"
+  echo "llm_url=${LLM_URL:-}"
+  echo "llm_api_key_present=$([ -n "${LLM_API_KEY:-}" ] && echo yes || echo no)"
   echo "initial_files:"
   find "${workdir}" -maxdepth 2 -type f | sort
 } > "${workdir}/smoke-harness-output.txt"

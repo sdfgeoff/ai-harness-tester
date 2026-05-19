@@ -280,6 +280,11 @@ fn run_image(
         .as_ref()
         .map(|test| prepare_temp_prompt(&run_id, &test.prompt_path))
         .transpose()?;
+    let runtime = tokio::runtime::Runtime::new()
+        .map_err(|error| format!("failed to create async runtime: {error}"))?;
+    let proxy = runtime.block_on(llm_proxy::start_proxy(llm_proxy::ProxyConfig {
+        model_name: model.model_name.clone(),
+    }))?;
 
     println!(
         "running harness '{harness_name}' with image: {}",
@@ -303,6 +308,11 @@ fn run_image(
             .arg("--env")
             .arg("WORKDIR=/workdir");
     }
+    command
+        .arg("--env")
+        .arg(format!("LLM_URL={}", proxy.base_url))
+        .arg("--env")
+        .arg(format!("LLM_API_KEY={}", proxy.api_key));
     if let Some(temp_prompt) = temp_prompt.as_ref() {
         let mount_source = fs::canonicalize(&temp_prompt.path).map_err(|error| {
             format!(
@@ -316,12 +326,18 @@ fn run_image(
             .arg("--env")
             .arg("INITIAL_PROMPT_FILE=/prompt/PROMPT.md");
     }
-    let mut child = command
+    let mut child = match command
         .arg(&harness.image)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|error| format!("failed to start docker: {error}"))?;
+    {
+        Ok(child) => child,
+        Err(error) => {
+            runtime.block_on(proxy.shutdown())?;
+            return Err(format!("failed to start docker: {error}"));
+        }
+    };
     let stdout = child
         .stdout
         .take()
@@ -345,6 +361,7 @@ fn run_image(
     if let Some(prompt) = temp_prompt.as_ref() {
         remove_temp_prompt(prompt)?;
     }
+    runtime.block_on(proxy.shutdown())?;
 
     let duration = started.elapsed();
     let finished_at = OffsetDateTime::now_utc();

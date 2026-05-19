@@ -654,10 +654,12 @@ name = "orchestrator-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "llm-proxy",
  "serde",
  "serde_json",
  "sha2",
  "time",
+ "tokio",
  "ureq",
  "zip",
 ]

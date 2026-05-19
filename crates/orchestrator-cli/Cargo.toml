@@ -11,9 +11,11 @@ path = "src/main.rs"
 
 [dependencies]
 clap.workspace = true
+llm-proxy = { path = "../llm-proxy" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 time.workspace = true
+tokio.workspace = true
 zip.workspace = true
 ureq.workspace = true
