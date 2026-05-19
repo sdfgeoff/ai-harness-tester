@@ -2,8 +2,11 @@ use clap::Parser;
 use serde::Serialize;
 use std::{
     fs::{self, File},
+    io::{Read, Write},
     path::{Path, PathBuf},
-    process::{Command, ExitCode},
+    process::{Command, ExitCode, Stdio},
+    sync::{Arc, Mutex},
+    thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use time::{format_description::FormatItem, macros::format_description, OffsetDateTime};
@@ -58,15 +61,48 @@ fn run_image(image: &str) -> Result<(), String> {
             run_dir.display()
         )
     })?;
+    let logs_dir = run_dir.join("logs");
+    fs::create_dir_all(&logs_dir).map_err(|error| {
+        format!(
+            "failed to create logs directory {}: {error}",
+            logs_dir.display()
+        )
+    })?;
+    let harness_log_path = logs_dir.join("harness.log");
+    let harness_log = Arc::new(Mutex::new(File::create(&harness_log_path).map_err(
+        |error| {
+            format!(
+                "failed to create harness log {}: {error}",
+                harness_log_path.display()
+            )
+        },
+    )?));
 
     println!("running Docker image: {image}");
 
-    let status = Command::new("docker")
+    let mut child = Command::new("docker")
         .arg("run")
         .arg("--rm")
         .arg(image)
-        .status()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|error| format!("failed to start docker: {error}"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture docker stdout".to_owned())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "failed to capture docker stderr".to_owned())?;
+    let stdout_thread = copy_to_log(stdout, Arc::clone(&harness_log));
+    let stderr_thread = copy_to_log(stderr, Arc::clone(&harness_log));
+    let status = child
+        .wait()
+        .map_err(|error| format!("failed to wait for docker: {error}"))?;
+    join_log_thread(stdout_thread)?;
+    join_log_thread(stderr_thread)?;
 
     let duration = started.elapsed();
     let finished_at = OffsetDateTime::now_utc();
@@ -82,6 +118,9 @@ fn run_image(image: &str) -> Result<(), String> {
         started_at: format_timestamp(started_at)?,
         finished_at: format_timestamp(finished_at)?,
         duration_ms: duration_ms(duration),
+        artifacts: RunArtifacts {
+            harness_log: "logs/harness.log".to_owned(),
+        },
     };
     write_results(&run_dir, &result)?;
     println!("wrote {}", run_dir.join("results.json").display());
@@ -102,6 +141,35 @@ fn run_image(image: &str) -> Result<(), String> {
     }
 }
 
+fn copy_to_log<R>(mut reader: R, log: Arc<Mutex<File>>) -> thread::JoinHandle<Result<(), String>>
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut buffer = [0; 8192];
+        loop {
+            let bytes_read = reader
+                .read(&mut buffer)
+                .map_err(|error| format!("failed to read docker output: {error}"))?;
+            if bytes_read == 0 {
+                return Ok(());
+            }
+
+            let mut log = log
+                .lock()
+                .map_err(|_| "harness log lock poisoned".to_owned())?;
+            log.write_all(&buffer[..bytes_read])
+                .map_err(|error| format!("failed to write harness log: {error}"))?;
+        }
+    })
+}
+
+fn join_log_thread(handle: thread::JoinHandle<Result<(), String>>) -> Result<(), String> {
+    handle
+        .join()
+        .map_err(|_| "harness log thread panicked".to_owned())?
+}
+
 #[derive(Debug, Serialize)]
 struct RunResult {
     run_id: String,
@@ -110,6 +178,12 @@ struct RunResult {
     started_at: String,
     finished_at: String,
     duration_ms: u64,
+    artifacts: RunArtifacts,
+}
+
+#[derive(Debug, Serialize)]
+struct RunArtifacts {
+    harness_log: String,
 }
 
 #[derive(Debug, Serialize)]
