@@ -368,8 +368,8 @@ fn extract_openai_usage(response_body: &[u8]) -> Option<Value> {
             "input_tokens": u.get("prompt_tokens"),
             "output_tokens": u.get("completion_tokens"),
             "total_tokens": u.get("total_tokens"),
-            "cache_read_tokens": u["prompt_tokens_details"].get("cached_tokens"),
-            "cache_write_tokens": u["completion_tokens_details"].get("cached_tokens"),
+            "cache_read_tokens": u.get("prompt_tokens_details").and_then(|v| v.get("cached_tokens")),
+            "cache_write_tokens": u.get("completion_tokens_details").and_then(|v| v.get("cached_tokens")),
         }))
 }
 

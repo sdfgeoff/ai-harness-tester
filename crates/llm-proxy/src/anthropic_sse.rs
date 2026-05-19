@@ -1,4 +1,4 @@
-use serde_json::json;
+use serde_json::{json, Value};
 
 /// Transform an OpenAI SSE frame to Anthropic SSE format.
 pub fn transform_openai_sse_to_anthropic(frame: &str, model: &str, content_index: &mut usize) -> String {
@@ -28,7 +28,7 @@ pub fn transform_openai_sse_to_anthropic(frame: &str, model: &str, content_index
                         serde_json::to_string(&json!({
                             "type": "message_delta",
                             "delta": {"stop_reason": stop_reason, "stop_sequence": null},
-                            "usage": {"output_tokens": parsed["usage"]["completion_tokens"].clone()}
+                            "usage": {"output_tokens": parsed.get("usage").and_then(|u| u.get("completion_tokens")).cloned().unwrap_or(Value::from(0))}
                         })).unwrap_or_default()
                     ));
                     continue;

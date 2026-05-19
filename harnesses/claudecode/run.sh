@@ -16,7 +16,7 @@ if [ ! -d "${workdir}" ]; then
 fi
 
 # Set environment variables for claude-code to use the orchestrator proxy
-export ANTHROPIC_AUTH_TOKEN="ollama"
+export ANTHROPIC_AUTH_TOKEN="${LLM_API_KEY}"
 export ANTHROPIC_API_KEY="${LLM_API_KEY}"
 export ANTHROPIC_BASE_URL="${LLM_URL}"
 

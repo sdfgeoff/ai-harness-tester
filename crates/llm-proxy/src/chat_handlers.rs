@@ -118,14 +118,13 @@ async fn chat_completions_non_streaming(
 
     // Extract usage from chat/completions response
     let usage = if let Ok(parsed) = serde_json::from_slice::<Value>(&response_body) {
-        let usage_obj = &parsed["usage"];
-        if usage_obj.is_object() {
+        if let Some(usage_obj) = parsed.get("usage").and_then(Value::as_object) {
             json!({
                 "input_tokens": usage_obj.get("prompt_tokens"),
                 "output_tokens": usage_obj.get("completion_tokens"),
                 "total_tokens": usage_obj.get("total_tokens"),
-                "cache_read_tokens": usage_obj["prompt_tokens_details"].get("cached_tokens"),
-                "cache_write_tokens": usage_obj["completion_tokens_details"].get("cached_tokens"),
+                "cache_read_tokens": usage_obj.get("prompt_tokens_details").and_then(|v| v.get("cached_tokens")),
+                "cache_write_tokens": usage_obj.get("completion_tokens_details").and_then(|v| v.get("cached_tokens")),
             })
         } else {
             json!(null)

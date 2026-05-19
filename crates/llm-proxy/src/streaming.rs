@@ -187,8 +187,8 @@ fn extract_usage(usage_obj: &Value, kind: ApiKind) -> Value {
             "input_tokens": usage_obj.get("prompt_tokens"),
             "output_tokens": usage_obj.get("completion_tokens"),
             "total_tokens": usage_obj.get("total_tokens"),
-            "cache_read_tokens": usage_obj["prompt_tokens_details"].get("cached_tokens"),
-            "cache_write_tokens": usage_obj["completion_tokens_details"].get("cached_tokens"),
+            "cache_read_tokens": usage_obj.get("prompt_tokens_details").and_then(|v| v.get("cached_tokens")),
+            "cache_write_tokens": usage_obj.get("completion_tokens_details").and_then(|v| v.get("cached_tokens")),
         }),
     }
 }
