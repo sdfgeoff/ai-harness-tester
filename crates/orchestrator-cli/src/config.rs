@@ -10,12 +10,18 @@ use std::{
 pub struct Config {
     #[serde(default = "default_timeout")]
     pub timeout_seconds: u64,
+    #[serde(default = "default_results_dir")]
+    pub results_dir: String,
     pub models: BTreeMap<String, ModelProfile>,
     pub harnesses: BTreeMap<String, HarnessProfile>,
 }
 
 fn default_timeout() -> u64 {
     1800
+}
+
+fn default_results_dir() -> String {
+    "results".to_owned()
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -41,6 +47,8 @@ pub fn load_config(path: &Path) -> Result<Config, String> {
 
 #[derive(Debug, Serialize)]
 struct RedactedConfig<'a> {
+    timeout_seconds: u64,
+    results_dir: &'a str,
     models: BTreeMap<&'a str, RedactedModelProfile<'a>>,
     harnesses: &'a BTreeMap<String, HarnessProfile>,
 }
@@ -68,6 +76,8 @@ pub fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Resu
         })
         .collect();
     let redacted = RedactedConfig {
+        timeout_seconds: config.timeout_seconds,
+        results_dir: &config.results_dir,
         models,
         harnesses: &config.harnesses,
     };

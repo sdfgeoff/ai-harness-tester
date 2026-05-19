@@ -52,7 +52,7 @@ pub fn execute_run(
     let run_id = run_id(batch_id, harness_name, model_name, test_name);
 
     // Create directories
-    let batch_dir = PathBuf::from("results").join(batch_id);
+    let batch_dir = PathBuf::from(&config.results_dir).join(batch_id);
     fs::create_dir_all(&batch_dir).map_err(|error| {
         format!(
             "failed to create batch directory {}: {error}",

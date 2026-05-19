@@ -157,7 +157,7 @@ fn execute_batch(
     let finished_at = OffsetDateTime::now_utc();
     let batch_duration = batch_started.elapsed();
     models::write_batch_summary(
-        &std::path::PathBuf::from("results").join(&batch_id),
+        &std::path::PathBuf::from(&config.results_dir).join(&batch_id),
         &BatchSummary {
             batch_id: batch_id.clone(),
             started_at: format_timestamp(batch_started_at)?,

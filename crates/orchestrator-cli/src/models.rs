@@ -10,7 +10,6 @@ pub struct RunResult {
     pub batch_id: String,
     pub status: RunStatus,
     pub harness_exit_code: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<RunError>,
     pub started_at: String,
     pub finished_at: String,
