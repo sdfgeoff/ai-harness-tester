@@ -201,7 +201,7 @@ pub fn execute_run(
     // Build and run Docker command
     let container_name = format!("harness-test-{run_id}");
     let mut command = Command::new("docker");
-    command.arg("run").arg("--rm").arg("--name").arg(&container_name);
+    command.arg("run").arg("--rm").arg("--name").arg(&container_name).arg("--network").arg("host");
 
     if let Some(working_dir) = working_dir.as_ref() {
         let mount_source = fs::canonicalize(working_dir).map_err(|error| {
