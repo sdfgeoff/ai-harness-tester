@@ -24,16 +24,16 @@ struct Cli {
 enum CommandName {
     /// Run a Docker image once and report its exit status.
     RunImage {
-        /// Comma-separated harness profile names from config.
+        /// Comma-separated harness profile names from config (use "all" for all non-smoke harnesses).
         #[arg(long)]
         harnesses: String,
-        /// Comma-separated model profile names from config.
+        /// Comma-separated model profile names from config (use "all" for all models).
         #[arg(long)]
         models: String,
         /// Config file path.
         #[arg(long, default_value = "config.json")]
         config: PathBuf,
-        /// Comma-separated test folder names under tests/.
+        /// Comma-separated test folder names under tests/ (use "all" for all tests).
         #[arg(long)]
         tests: String,
     },
@@ -73,6 +73,54 @@ fn parse_list(kind: &str, raw: &str) -> Result<Vec<String>, String> {
     Ok(values)
 }
 
+/// Expand "all" meta-value for harnesses (all except "smoke").
+fn expand_all_harnesses(selected: &[String], config: &config::Config) -> Result<Vec<String>, String> {
+    if selected.iter().any(|s| s == "all") {
+        Ok(config.harnesses.keys()
+            .filter(|h| *h != "smoke")
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect())
+    } else {
+        Ok(selected.to_vec())
+    }
+}
+
+/// Expand "all" meta-value for models.
+fn expand_all_models(selected: &[String], config: &config::Config) -> Result<Vec<String>, String> {
+    if selected.iter().any(|s| s == "all") {
+        Ok(config.models.keys().cloned().collect())
+    } else {
+        Ok(selected.to_vec())
+    }
+}
+
+/// Expand "all" meta-value for tests (all folders under tests/).
+fn expand_all_tests(selected: &[String]) -> Result<Vec<String>, String> {
+    if selected.iter().any(|s| s == "all") {
+        let tests_dir = std::path::Path::new("tests");
+        if !tests_dir.is_dir() {
+            return Err("tests/ directory not found".to_owned());
+        }
+        let mut tests: Vec<String> = std::fs::read_dir(tests_dir)
+            .map_err(|e| format!("failed to read tests/: {e}"))?
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                if entry.path().is_dir() {
+                    entry.file_name().into_string().ok()
+                } else {
+                    None
+                }
+            })
+            .collect();
+        tests.sort();
+        Ok(tests)
+    } else {
+        Ok(selected.to_vec())
+    }
+}
+
 fn execute_batch(
     config_path: &PathBuf,
     selected_harnesses: &[String],
@@ -84,18 +132,23 @@ fn execute_batch(
     let batch_id = batch_id(batch_started_at)?;
     let config = config::load_config(config_path)?;
 
+    // Expand "all" meta-values
+    let harnesses = expand_all_harnesses(selected_harnesses, &config)?;
+    let models = expand_all_models(selected_models, &config)?;
+    let tests = expand_all_tests(selected_tests)?;
+
     // Preflight
     let mut harness_image_ids = std::collections::BTreeMap::new();
-    for harness in selected_harnesses {
+    for harness in &harnesses {
         let profile = config.harnesses.get(harness).ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
         let image_id = docker_runner::inspect_image(harness, &profile.image)?;
         harness_image_ids.insert(harness.clone(), image_id);
     }
-    for model in selected_models {
+    for model in &models {
         let profile = config.models.get(model).ok_or_else(|| format!("unknown model profile '{model}'"))?;
         config::preflight_model(model, profile)?;
     }
-    for test in selected_tests {
+    for test in &tests {
         load_test_selection(test)?;
     }
 
@@ -103,9 +156,9 @@ fn execute_batch(
     let mut failed_runs = 0usize;
     let mut run_references = Vec::new();
 
-    for test in selected_tests {
-        for model in selected_models {
-            for harness in selected_harnesses {
+    for test in &tests {
+        for model in &models {
+            for harness in &harnesses {
                 let harness_profile = config.harnesses.get(harness).ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
                 let model_profile = config.models.get(model).ok_or_else(|| format!("unknown model profile '{model}'"))?;
 
@@ -158,5 +211,44 @@ mod tests {
         let response = serde_json::json!({"object":"list","data":[{"id":"other-model"},{"id":"smoke-local"}]});
         assert!(model_response_contains(&response, "smoke-local"));
         assert!(!model_response_contains(&response, "missing"));
+    }
+
+    #[test] fn expands_all_harnesses_excludes_smoke() {
+        let config = config::Config {
+            models: std::collections::BTreeMap::new(),
+            harnesses: ["smoke", "pi", "claudecode"]
+                .into_iter().map(|h| (h.to_owned(), orchestrator_core::config::HarnessProfile { image: "test".to_owned() }))
+                .collect(),
+            results_dir: "results".to_owned(),
+            timeout_seconds: 300,
+        };
+        let result = expand_all_harnesses(&["all".to_owned()], &config).unwrap();
+        assert_eq!(result, vec!["claudecode", "pi"]);
+    }
+
+    #[test] fn passes_through_explicit_harnesses() {
+        let config = config::Config {
+            models: std::collections::BTreeMap::new(),
+            harnesses: ["smoke", "pi", "claudecode"]
+                .into_iter().map(|h| (h.to_owned(), orchestrator_core::config::HarnessProfile { image: "test".to_owned() }))
+                .collect(),
+            results_dir: "results".to_owned(),
+            timeout_seconds: 300,
+        };
+        let result = expand_all_harnesses(&["smoke".to_owned(), "pi".to_owned()], &config).unwrap();
+        assert_eq!(result, vec!["smoke", "pi"]);
+    }
+
+    #[test] fn expands_all_models() {
+        let config = config::Config {
+            models: ["a", "b"].into_iter().map(|m| (m.to_owned(), orchestrator_core::config::ModelProfile {
+                model_name: m.to_owned(), base_url: "http://test".to_owned(), api_key: "".to_owned()
+            })).collect(),
+            harnesses: std::collections::BTreeMap::new(),
+            results_dir: "results".to_owned(),
+            timeout_seconds: 300,
+        };
+        let result = expand_all_models(&["all".to_owned()], &config).unwrap();
+        assert_eq!(result, vec!["a", "b"]);
     }
 }
