@@ -20,6 +20,9 @@
     },
     "opencode": {
       "image": "harness-test/opencode"
+    },
+    "claudecode": {
+      "image": "harness-test/claudecode"
     }
   }
 }
