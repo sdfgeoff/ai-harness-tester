@@ -74,9 +74,10 @@ fn run(cli: Cli) -> Result<(), String> {
             let selected_tests = parse_selection_list("tests", &tests)?;
 
             for harness in &selected_harnesses {
-                if !config.harnesses.contains_key(harness) {
+                let Some(profile) = config.harnesses.get(harness) else {
                     return Err(format!("unknown harness profile '{harness}'"));
-                }
+                };
+                inspect_docker_image(harness, &profile.image)?;
             }
             for model in &selected_models {
                 if !config.models.contains_key(model) {
@@ -160,6 +161,27 @@ fn parse_selection_list(kind: &str, raw: &str) -> Result<Vec<String>, String> {
     }
 
     Ok(values)
+}
+
+fn inspect_docker_image(harness_name: &str, image: &str) -> Result<(), String> {
+    let output = Command::new("docker")
+        .arg("image")
+        .arg("inspect")
+        .arg(image)
+        .output()
+        .map_err(|error| {
+            format!("failed to inspect Docker image for harness '{harness_name}': {error}")
+        })?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!(
+            "Docker image for harness '{harness_name}' does not exist locally: {image}: {}",
+            stderr.trim()
+        ))
+    }
 }
 
 fn run_image(

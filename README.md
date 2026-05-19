@@ -95,6 +95,8 @@ When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state
 
 Selected combinations run sequentially in test/model/harness order. A failed harness run is preserved and does not stop later selected combinations. The CLI exits non-zero after the batch if any run failed.
 
+Before creating a batch directory, the CLI validates selected test folders, required test files, harness profile names, model profile names, and local Docker image availability. These preflight failures are configuration errors and do not produce result artifacts.
+
 The selected test archive is extracted into `working_dir` at the root of the run artifact. Archive entries with absolute paths, `..` path traversal, or symlinks are rejected before Docker starts.
 
 When a test is selected, `working_dir` is mounted into the container read-write at `/workdir`, the container working directory is set to `/workdir`, and `WORKDIR=/workdir` is provided in the environment.
