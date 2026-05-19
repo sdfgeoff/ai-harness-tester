@@ -93,9 +93,24 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
 
     println!("running Docker image: {image}");
 
-    let mut child = Command::new("docker")
-        .arg("run")
-        .arg("--rm")
+    let mut command = Command::new("docker");
+    command.arg("run").arg("--rm");
+    if let Some(working_dir) = working_dir.as_ref() {
+        let mount_source = fs::canonicalize(working_dir).map_err(|error| {
+            format!(
+                "failed to canonicalize working directory {}: {error}",
+                working_dir.display()
+            )
+        })?;
+        command
+            .arg("--volume")
+            .arg(format!("{}:/workdir", mount_source.display()))
+            .arg("--workdir")
+            .arg("/workdir")
+            .arg("--env")
+            .arg("WORKDIR=/workdir");
+    }
+    let mut child = command
         .arg(image)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

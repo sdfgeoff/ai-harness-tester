@@ -89,3 +89,5 @@ At this stage `results.json` records run ID, status, timestamps, duration, harne
 When `--test <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`.
 
 The selected test archive is extracted into `working_dir` at the root of the run artifact. Archive entries with absolute paths, `..` path traversal, or symlinks are rejected before Docker starts.
+
+When a test is selected, `working_dir` is mounted into the container read-write at `/workdir`, the container working directory is set to `/workdir`, and `WORKDIR=/workdir` is provided in the environment.

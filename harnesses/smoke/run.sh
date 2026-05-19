@@ -13,6 +13,8 @@ if [ ! -d "${workdir}" ]; then
   exit 2
 fi
 
+echo "smoke harness saw workdir" > "${workdir}/smoke-workdir-seen.txt"
+
 if [ ! -f "${prompt_file}" ]; then
   echo "missing prompt file: ${prompt_file}" >&2
   exit 3
