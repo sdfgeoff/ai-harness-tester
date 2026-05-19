@@ -22,7 +22,8 @@ fi
 
 {
   echo "smoke harness completed"
-  echo "prompt_sha256_unavailable_in_v0_harness"
+  printf "prompt_first_line="
+  sed -n '1p' "${prompt_file}"
   echo "initial_files:"
   find "${workdir}" -maxdepth 2 -type f | sort
 } > "${workdir}/smoke-harness-output.txt"

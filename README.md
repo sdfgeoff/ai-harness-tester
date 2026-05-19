@@ -81,6 +81,7 @@ results/
     logs/
       harness.log
     working_dir/
+    PROMPT.md
     results.json
 ```
 
@@ -91,3 +92,5 @@ When `--test <name>` is provided, the CLI validates `tests/<name>/initial_state.
 The selected test archive is extracted into `working_dir` at the root of the run artifact. Archive entries with absolute paths, `..` path traversal, or symlinks are rejected before Docker starts.
 
 When a test is selected, `working_dir` is mounted into the container read-write at `/workdir`, the container working directory is set to `/workdir`, and `WORKDIR=/workdir` is provided in the environment.
+
+The selected prompt is copied to a temporary file outside `working_dir`, mounted read-only as `/prompt/PROMPT.md`, and exposed as `INITIAL_PROMPT_FILE=/prompt/PROMPT.md`. After the run, the same temporary prompt is copied into the run artifact as `PROMPT.md` and the temporary file is removed.

@@ -90,6 +90,10 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             Ok::<PathBuf, String>(working_dir)
         })
         .transpose()?;
+    let temp_prompt = selected_test
+        .as_ref()
+        .map(|test| prepare_temp_prompt(&run_id, &test.prompt_path))
+        .transpose()?;
 
     println!("running Docker image: {image}");
 
@@ -109,6 +113,19 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             .arg("/workdir")
             .arg("--env")
             .arg("WORKDIR=/workdir");
+    }
+    if let Some(temp_prompt) = temp_prompt.as_ref() {
+        let mount_source = fs::canonicalize(&temp_prompt.path).map_err(|error| {
+            format!(
+                "failed to canonicalize temporary prompt {}: {error}",
+                temp_prompt.path.display()
+            )
+        })?;
+        command
+            .arg("--volume")
+            .arg(format!("{}:/prompt/PROMPT.md:ro", mount_source.display()))
+            .arg("--env")
+            .arg("INITIAL_PROMPT_FILE=/prompt/PROMPT.md");
     }
     let mut child = command
         .arg(image)
@@ -132,6 +149,14 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
     join_log_thread(stdout_thread)?;
     join_log_thread(stderr_thread)?;
 
+    let prompt_artifact = temp_prompt
+        .as_ref()
+        .map(|prompt| copy_prompt_artifact(prompt, &run_dir))
+        .transpose()?;
+    if let Some(prompt) = temp_prompt.as_ref() {
+        remove_temp_prompt(prompt)?;
+    }
+
     let duration = started.elapsed();
     let finished_at = OffsetDateTime::now_utc();
     let harness_exit_code = status.code();
@@ -153,6 +178,7 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
         }),
         artifacts: RunArtifacts {
             working_dir: working_dir.map(|_| "working_dir".to_owned()),
+            prompt: prompt_artifact,
             harness_log: "logs/harness.log".to_owned(),
         },
     };
@@ -179,6 +205,7 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
 struct TestSelection {
     name: String,
     initial_state_path: PathBuf,
+    prompt_path: PathBuf,
     initial_state_sha256: String,
     prompt_sha256: String,
 }
@@ -211,8 +238,57 @@ fn load_test_selection(name: &str) -> Result<TestSelection, String> {
     Ok(TestSelection {
         name: name.to_owned(),
         initial_state_path: initial_state.clone(),
+        prompt_path: prompt.clone(),
         initial_state_sha256: sha256_file(&initial_state)?,
         prompt_sha256: sha256_file(&prompt)?,
+    })
+}
+
+#[derive(Debug)]
+struct TempPrompt {
+    path: PathBuf,
+}
+
+fn prepare_temp_prompt(run_id: &str, prompt_path: &Path) -> Result<TempPrompt, String> {
+    let temp_dir = std::env::temp_dir().join("harness-test-prompts");
+    fs::create_dir_all(&temp_dir).map_err(|error| {
+        format!(
+            "failed to create temporary prompt directory {}: {error}",
+            temp_dir.display()
+        )
+    })?;
+
+    let path = temp_dir.join(format!("{run_id}-PROMPT.md"));
+    fs::copy(prompt_path, &path).map_err(|error| {
+        format!(
+            "failed to copy prompt {} to temporary prompt {}: {error}",
+            prompt_path.display(),
+            path.display()
+        )
+    })?;
+
+    Ok(TempPrompt { path })
+}
+
+fn copy_prompt_artifact(prompt: &TempPrompt, run_dir: &Path) -> Result<String, String> {
+    let artifact_path = run_dir.join("PROMPT.md");
+    fs::copy(&prompt.path, &artifact_path).map_err(|error| {
+        format!(
+            "failed to copy temporary prompt {} to artifact {}: {error}",
+            prompt.path.display(),
+            artifact_path.display()
+        )
+    })?;
+
+    Ok("PROMPT.md".to_owned())
+}
+
+fn remove_temp_prompt(prompt: &TempPrompt) -> Result<(), String> {
+    fs::remove_file(&prompt.path).map_err(|error| {
+        format!(
+            "failed to remove temporary prompt {}: {error}",
+            prompt.path.display()
+        )
     })
 }
 
@@ -414,6 +490,8 @@ struct RunInputs {
 struct RunArtifacts {
     #[serde(skip_serializing_if = "Option::is_none")]
     working_dir: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt: Option<String>,
     harness_log: String,
 }
 
