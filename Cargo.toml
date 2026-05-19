@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/orchestrator-cli", "crates/llm-proxy"]
+members = ["crates/orchestrator-cli", "crates/orchestrator-core", "crates/docker-runner", "crates/llm-proxy"]
 resolver = "2"
 
 [workspace.package]
@@ -20,3 +20,5 @@ zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
 ureq = { version = "2.12.1", features = ["json"] }
 tempfile = "3.19.0"
 fastrand = "2.3.0"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

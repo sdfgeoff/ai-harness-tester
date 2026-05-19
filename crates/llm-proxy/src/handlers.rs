@@ -295,7 +295,7 @@ pub async fn models(State(state): State<ProxyState>, headers: HeaderMap) -> Resp
         )
         .await;
 
-        eprintln!("proxy auth failure: GET /v1/models");
+        tracing::warn!(path = "GET /v1/models", "proxy auth failure");
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
@@ -388,6 +388,6 @@ async fn auth_failure_response(
     )
     .await;
 
-    eprintln!("proxy auth failure: {method} {path}");
+    tracing::warn!(method = method, path = path, "proxy auth failure");
     StatusCode::UNAUTHORIZED.into_response()
 }

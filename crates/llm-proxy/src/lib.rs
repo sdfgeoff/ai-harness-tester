@@ -1,3 +1,4 @@
+mod chat_handlers;
 mod handlers;
 mod streaming;
 
@@ -136,6 +137,7 @@ pub async fn start_proxy(config: ProxyConfig) -> Result<ProxyHandle, String> {
     let app = Router::new()
         .route("/v1/models", get(handlers::models))
         .route("/v1/responses", post(handlers::responses))
+        .route("/v1/chat/completions", post(chat_handlers::chat_completions))
         .with_state(state);
 
     let listener = TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0))
@@ -151,7 +153,7 @@ pub async fn start_proxy(config: ProxyConfig) -> Result<ProxyHandle, String> {
             let _ = shutdown_rx.await;
         });
         if let Err(error) = server.await {
-            eprintln!("proxy server error: {error}");
+            tracing::error!(error = %error, "proxy server error");
         }
     });
 

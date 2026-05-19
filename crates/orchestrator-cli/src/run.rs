@@ -8,7 +8,7 @@ use std::{
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 
-use crate::{
+use orchestrator_core::{
     config::{Config, HarnessProfile, ModelProfile},
     models::{
         ResolvedHarness, ResolvedModel, RunArtifacts, RunError, RunExecution, RunInputs,
@@ -25,7 +25,7 @@ use crate::{
 /// Intermediate state after successful setup, before harness execution.
 struct SetupResult {
     working_dir: Option<PathBuf>,
-    temp_prompt: Option<crate::test_selection::TempPrompt>,
+    temp_prompt: Option<orchestrator_core::test_selection::TempPrompt>,
     runtime: Runtime,
     proxy_log_path: PathBuf,
     proxy: llm_proxy::ProxyHandle,
@@ -51,6 +51,8 @@ pub fn execute_run(
     let test_name_owned = test_name.to_string();
     let run_id = run_id(batch_id, harness_name, model_name, test_name);
 
+    tracing::info!(run_id = %run_id, harness = harness_name, model = model_name, test = %test_name, "starting run");
+
     // Create directories
     let batch_dir = PathBuf::from(&config.results_dir).join(batch_id);
     fs::create_dir_all(&batch_dir).map_err(|error| {
@@ -59,7 +61,7 @@ pub fn execute_run(
             batch_dir.display()
         )
     })?;
-    crate::config::write_redacted_config_snapshot(&batch_dir, config)?;
+    orchestrator_core::config::write_redacted_config_snapshot(&batch_dir, config)?;
 
     let run_dir = batch_dir.join("runs").join(&run_id);
     fs::create_dir_all(&run_dir).map_err(|error| {
@@ -128,6 +130,7 @@ pub fn execute_run(
     let setup = match setup {
         Ok(s) => s,
         Err(error) => {
+            tracing::error!(run_id = %run_id, error = %error, "setup failed");
             eprintln!("setup failed for run {}: {}", run_id, error);
             let duration = started.elapsed();
             let finished_at = OffsetDateTime::now_utc();
@@ -174,7 +177,7 @@ pub fn execute_run(
                     proxy_log: "logs/proxy.ndjson".to_owned(),
                 },
             };
-            crate::models::write_results(&run_dir, &result)?;
+            orchestrator_core::models::write_results(&run_dir, &result)?;
             return Ok(RunExecution {
                 run_id,
                 status: RunStatus::SetupFailed,
@@ -246,6 +249,7 @@ pub fn execute_run(
         Err(error) => {
             runtime.block_on(proxy.shutdown())?;
             // Docker spawn failure is a setup failure
+            tracing::error!(run_id = %run_id, error = %error, "setup failed: docker spawn");
             eprintln!("setup failed for run {}: failed to start docker: {}", run_id, error);
             let duration = started.elapsed();
             let finished_at = OffsetDateTime::now_utc();
@@ -292,7 +296,7 @@ pub fn execute_run(
                     proxy_log: "logs/proxy.ndjson".to_owned(),
                 },
             };
-            crate::models::write_results(&run_dir, &result)?;
+            orchestrator_core::models::write_results(&run_dir, &result)?;
             return Ok(RunExecution {
                 run_id,
                 status: RunStatus::SetupFailed,
@@ -319,6 +323,7 @@ pub fn execute_run(
             Ok(Some(s)) => break (s, false),
             Ok(None) => {
                 if std::time::Instant::now() >= timeout_instant {
+                    tracing::warn!(run_id = %run_id, timeout_seconds = config.timeout_seconds, "run exceeded timeout, killing container");
                     eprintln!(
                         "run {} exceeded timeout of {} seconds, killing container",
                         run_id, config.timeout_seconds
@@ -417,7 +422,7 @@ pub fn execute_run(
         },
     };
 
-    crate::models::write_results(&run_dir, &result)?;
+    orchestrator_core::models::write_results(&run_dir, &result)?;
     println!("wrote {}", run_dir.join("results.json").display());
 
     match run_status {
@@ -429,6 +434,7 @@ pub fn execute_run(
             })
         }
         RunStatus::TimedOut => {
+            tracing::warn!(run_id = %run_id, duration_ms = duration_ms(duration), "container timed out");
             eprintln!("container timed out after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
@@ -436,6 +442,7 @@ pub fn execute_run(
             })
         }
         RunStatus::Failed => {
+            tracing::error!(run_id = %run_id, harness_exit_code = ?harness_exit_code, duration_ms = duration_ms(duration), "container failed");
             eprintln!("container failed after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
@@ -443,6 +450,7 @@ pub fn execute_run(
             })
         }
         RunStatus::SetupFailed => {
+            tracing::error!(run_id = %run_id, duration_ms = duration_ms(duration), "setup failed");
             eprintln!("setup failed after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,

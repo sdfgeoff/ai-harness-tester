@@ -37,10 +37,19 @@ pub struct HarnessProfile {
 }
 
 pub fn load_config(path: &Path) -> Result<Config, String> {
+    tracing::info!(config_path = %path.display(), "loading config");
     let file = File::open(path)
         .map_err(|error| format!("failed to open config {}: {error}", path.display()))?;
-    serde_json::from_reader(file)
-        .map_err(|error| format!("failed to parse config {}: {error}", path.display()))
+    let config: Config = serde_json::from_reader(file)
+        .map_err(|error| format!("failed to parse config {}: {error}", path.display()))?;
+    tracing::info!(
+        models = config.models.len(),
+        harnesses = config.harnesses.len(),
+        timeout_seconds = config.timeout_seconds,
+        results_dir = %config.results_dir,
+        "config loaded"
+    );
+    Ok(config)
 }
 
 // ── Redacted config snapshot ────────────────────────────────────────────────
@@ -99,6 +108,7 @@ pub fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Resu
 // ── Preflight helpers ───────────────────────────────────────────────────────
 
 pub fn inspect_docker_image(harness_name: &str, image: &str) -> Result<String, String> {
+    tracing::info!(harness = harness_name, image = image, "inspecting Docker image");
     let output = Command::new("docker")
         .arg("image")
         .arg("inspect")
@@ -124,6 +134,7 @@ pub fn inspect_docker_image(harness_name: &str, image: &str) -> Result<String, S
 
 pub fn preflight_model(profile_name: &str, model: &ModelProfile) -> Result<(), String> {
     let models_url = format!("{}/models", model.base_url.trim_end_matches('/'));
+    tracing::info!(profile = profile_name, url = %models_url, "preflight: checking model availability");
     let response = ureq::get(&models_url)
         .set("Authorization", &format!("Bearer {}", model.api_key))
         .call()

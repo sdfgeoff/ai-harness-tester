@@ -58,7 +58,7 @@ pub async fn responses_streaming(
         )
         .await;
 
-        eprintln!("proxy auth failure: POST /v1/responses (streaming)");
+        tracing::warn!(path = "POST /v1/responses", streaming = true, "proxy auth failure");
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
@@ -263,7 +263,7 @@ pub async fn responses_streaming(
                     buffer = remaining;
                 }
                 Err(read_error) => {
-                    eprintln!("proxy stream read error: {read_error}");
+                    tracing::error!(error = %read_error, "proxy stream read error");
                     break;
                 }
             }

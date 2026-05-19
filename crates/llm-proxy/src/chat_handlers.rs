@@ -1,0 +1,396 @@
+use std::time::Instant;
+
+use axum::{
+    body::{Body, Bytes},
+    extract::State,
+    http::{header, HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+};
+use futures_util::StreamExt;
+use reqwest::Response as UpstreamResponse;
+use serde_json::{json, Value};
+use tokio_stream::wrappers::ReceiverStream;
+
+use crate::{
+    ProxyState,
+    log_record,
+    is_authorized,
+    generate_request_id,
+    utc_now,
+};
+
+/// Main entry point for POST /v1/chat/completions.
+pub async fn chat_completions(
+    State(state): State<ProxyState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if !is_authorized(&headers, &state.api_key) {
+        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/chat/completions").await;
+    }
+
+    let payload = match serde_json::from_slice::<Value>(&body) {
+        Ok(Value::Object(payload)) => payload,
+        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
+        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+    };
+
+    let is_streaming = payload.get("stream").and_then(Value::as_bool) == Some(true);
+
+    if is_streaming {
+        chat_completions_streaming(State(state), headers, body).await
+    } else {
+        chat_completions_non_streaming(State(state), headers, body).await
+    }
+}
+
+/// Handle non-streaming POST /v1/chat/completions.
+async fn chat_completions_non_streaming(
+    State(state): State<ProxyState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if !is_authorized(&headers, &state.api_key) {
+        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/chat/completions").await;
+    }
+
+    let mut payload = match serde_json::from_slice::<Value>(&body) {
+        Ok(Value::Object(payload)) => payload,
+        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
+        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+    };
+
+    let original_model = payload
+        .get("model")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .unwrap_or_default();
+
+    payload.insert("model".to_owned(), Value::String(state.model_name.clone()));
+
+    let request_id = generate_request_id();
+    let started_at = utc_now();
+    let start_instant = Instant::now();
+
+    log_record(
+        &state.log,
+        &json!({
+            "record_type": "request_start",
+            "request_id": request_id,
+            "started_at": started_at,
+            "kind": "generation",
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "original_model": original_model,
+            "upstream_model": state.model_name,
+            "request_body": payload,
+        }),
+    )
+    .await;
+
+    let upstream_url = format!(
+        "{}/chat/completions",
+        state.upstream_base_url.trim_end_matches('/')
+    );
+    let mut request = state.client.post(&upstream_url).json(&payload);
+    if !state.upstream_api_key.is_empty() {
+        request = request.bearer_auth(&state.upstream_api_key);
+    }
+
+    let (status, response_body, error) = match request.send().await {
+        Ok(response) => {
+            let status = response.status().as_u16();
+            let response_body = match response.bytes().await {
+                Ok(body) => body,
+                Err(read_error) => {
+                    log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
+                        "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
+                        status, None, None, Some(&format!("failed to read upstream response body: {read_error}"))).await;
+                    return (StatusCode::BAD_GATEWAY, format!("failed to read upstream response body: {read_error}")).into_response();
+                }
+            };
+            (status, response_body, None::<String>)
+        }
+        Err(send_error) => {
+            log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
+                "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
+                0, None, None, Some(&format!("failed to reach upstream model endpoint: {send_error}"))).await;
+            return (StatusCode::BAD_GATEWAY, format!("failed to reach upstream model endpoint: {send_error}")).into_response();
+        }
+    };
+
+    // Extract usage from chat/completions response
+    let usage = if let Ok(parsed) = serde_json::from_slice::<Value>(&response_body) {
+        let usage_obj = &parsed["usage"];
+        if usage_obj.is_object() {
+            json!({
+                "input_tokens": usage_obj.get("prompt_tokens"),
+                "output_tokens": usage_obj.get("completion_tokens"),
+                "total_tokens": usage_obj.get("total_tokens"),
+                "cache_read_tokens": usage_obj["prompt_tokens_details"].get("cached_tokens"),
+                "cache_write_tokens": usage_obj["completion_tokens_details"].get("cached_tokens"),
+            })
+        } else {
+            json!(null)
+        }
+    } else {
+        json!(null)
+    };
+
+    let response_body_value = serde_json::from_slice::<Value>(&response_body).unwrap_or_else(
+        |_| Value::String(String::from_utf8_lossy(&response_body).to_string()),
+    );
+
+    log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
+        "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
+        status, Some(&response_body_value), Some(&usage), error.as_ref().map(|x| x.as_str())).await;
+
+    let content_type = response_body_value
+        .as_object()
+        .map(|_| header::HeaderValue::from_static("application/json"))
+        .unwrap_or_else(|| header::HeaderValue::from_static("application/octet-stream"));
+
+    Response::builder()
+        .status(StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
+        .header(header::CONTENT_TYPE, content_type)
+        .body(Body::from(response_body))
+        .unwrap_or_else(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("failed to build proxy response: {error}")).into_response())
+}
+
+/// Handle streaming POST /v1/chat/completions.
+pub async fn chat_completions_streaming(
+    State(state): State<ProxyState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if !is_authorized(&headers, &state.api_key) {
+        let request_id = generate_request_id();
+        log_request_end(&state.log, &request_id, 0, "generation", "POST", "/v1/chat/completions",
+            "", "", 401, None, None, Some("unauthorized")).await;
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    let mut payload = match serde_json::from_slice::<Value>(&body) {
+        Ok(Value::Object(payload)) => payload,
+        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
+        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+    };
+
+    let original_model = payload
+        .get("model")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .unwrap_or_default();
+
+    payload.insert("model".to_owned(), Value::String(state.model_name.clone()));
+
+    let request_id = generate_request_id();
+    let started_at = utc_now();
+    let start_instant = Instant::now();
+
+    log_record(
+        &state.log,
+        &json!({
+            "record_type": "request_start",
+            "request_id": request_id,
+            "started_at": started_at,
+            "kind": "generation",
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "original_model": original_model,
+            "upstream_model": state.model_name,
+            "request_body": payload,
+        }),
+    )
+    .await;
+
+    let upstream_url = format!(
+        "{}/chat/completions",
+        state.upstream_base_url.trim_end_matches('/')
+    );
+    let mut request = state.client.post(&upstream_url).json(&payload);
+    if !state.upstream_api_key.is_empty() {
+        request = request.bearer_auth(&state.upstream_api_key);
+    }
+
+    let response: UpstreamResponse = match request.send().await {
+        Ok(response) => response,
+        Err(send_error) => {
+            log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
+                "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
+                0, None, None, Some(&format!("failed to reach upstream model endpoint: {send_error}"))).await;
+            return (StatusCode::BAD_GATEWAY, format!("failed to reach upstream model endpoint: {send_error}")).into_response();
+        }
+    };
+
+    let status = response.status().as_u16();
+
+    if status != 200 {
+        let error_body = response.bytes().await.unwrap_or_default();
+        let error_text = String::from_utf8_lossy(&error_body).to_string();
+        log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
+            "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
+            status, None, None, Some(&error_text)).await;
+        return Response::builder()
+            .status(StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
+            .body(axum::body::Body::from(error_body))
+            .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    }
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<axum::response::sse::Event, std::convert::Infallible>>(32);
+    let log = state.log.clone();
+    let request_id_clone = request_id.clone();
+    let original_model_clone = original_model.clone();
+    let upstream_model = state.model_name.clone();
+    let start_instant_clone = start_instant.clone();
+
+    tokio::spawn(async move {
+        let mut usage: Option<Value> = None;
+        let mut current_event_name: Option<String> = None;
+        let mut stream = response.bytes_stream();
+        let mut buffer = Vec::new();
+
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    buffer.extend_from_slice(&chunk);
+                    let mut remaining = buffer.clone();
+                    loop {
+                        match remaining.windows(2).position(|w| w == b"\n\n") {
+                            Some(pos) => {
+                                let frame_end = pos + 2;
+                                let frame = remaining[..frame_end].to_vec();
+                                remaining = remaining[frame_end..].to_vec();
+                                let frame_text = String::from_utf8_lossy(&frame);
+                                for line in frame_text.lines() {
+                                    if line.starts_with("event: ") {
+                                        current_event_name = Some(line[7..].to_string());
+                                    } else if line.starts_with("data: ") {
+                                        let data_raw = line[6..].to_string();
+                                        let event_name = current_event_name.clone().unwrap_or_default();
+                                        log_record(&log, &json!({
+                                            "record_type": "stream_event",
+                                            "request_id": request_id_clone,
+                                            "received_at": utc_now(),
+                                            "event": event_name,
+                                            "data_raw": data_raw,
+                                        })).await;
+                                        if let Ok(parsed) = serde_json::from_str::<Value>(&data_raw) {
+                                            if let Some(usage_obj) = parsed.get("usage") {
+                                                if usage_obj.is_object() {
+                                                    usage = Some(json!({
+                                                        "input_tokens": usage_obj.get("prompt_tokens"),
+                                                        "output_tokens": usage_obj.get("completion_tokens"),
+                                                        "total_tokens": usage_obj.get("total_tokens"),
+                                                        "cache_read_tokens": usage_obj["prompt_tokens_details"].get("cached_tokens"),
+                                                        "cache_write_tokens": usage_obj["completion_tokens_details"].get("cached_tokens"),
+                                                    }));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                let _ = tx.send(Ok(axum::response::sse::Event::default().data(frame_text.trim_end_matches("\n\n")))).await;
+                                current_event_name = None;
+                            }
+                            None => break,
+                        }
+                    }
+                    buffer = remaining;
+                }
+                Err(read_error) => {
+                    tracing::error!(error = %read_error, "proxy stream read error");
+                    break;
+                }
+            }
+        }
+
+        if !buffer.is_empty() {
+            let frame_text = String::from_utf8_lossy(&buffer).to_string();
+            let trimmed = frame_text.trim_end_matches("\n\n").to_string();
+            if !trimmed.is_empty() {
+                for line in trimmed.lines() {
+                    if line.starts_with("data: ") {
+                        let data_raw = line[6..].to_string();
+                        if let Ok(parsed) = serde_json::from_str::<Value>(&data_raw) {
+                            if let Some(usage_obj) = parsed.get("usage") {
+                                if usage_obj.is_object() {
+                                    usage = Some(json!({
+                                        "input_tokens": usage_obj.get("prompt_tokens"),
+                                        "output_tokens": usage_obj.get("completion_tokens"),
+                                        "total_tokens": usage_obj.get("total_tokens"),
+                                        "cache_read_tokens": usage_obj["prompt_tokens_details"].get("cached_tokens"),
+                                        "cache_write_tokens": usage_obj["completion_tokens_details"].get("cached_tokens"),
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+                let _ = tx.send(Ok(axum::response::sse::Event::default().data(trimmed))).await;
+            }
+        }
+
+        log_request_end(&log, &request_id, start_instant_clone.elapsed().as_millis() as u64,
+            "generation", "POST", "/v1/chat/completions", &original_model_clone, &upstream_model,
+            status, None, Some(&usage.unwrap_or(Value::Null)), None).await;
+    });
+
+    axum::response::Sse::new(ReceiverStream::new(rx)).into_response()
+}
+
+async fn auth_failure_response(
+    state: &ProxyState,
+    request_id: &str,
+    kind: &str,
+    method: &str,
+    path: &str,
+) -> Response {
+    log_record(&state.log, &json!({
+        "record_type": "request_start",
+        "request_id": request_id,
+        "started_at": utc_now(),
+        "kind": kind,
+        "method": method,
+        "path": path,
+    })).await;
+    log_request_end(&state.log, request_id, 0, kind, method, path, "", "", 401, None, None, Some("unauthorized")).await;
+    StatusCode::UNAUTHORIZED.into_response()
+}
+
+/// Helper to write a request_end record.
+async fn log_request_end(
+    log: &tokio::sync::Mutex<tokio::io::BufWriter<tokio::fs::File>>,
+    request_id: &str,
+    duration_ms: u64,
+    kind: &str,
+    method: &str,
+    path: &str,
+    original_model: &str,
+    upstream_model: &str,
+    status_code: u16,
+    response_body: Option<&Value>,
+    usage: Option<&Value>,
+    error: Option<&str>,
+) {
+    let mut record = json!({
+        "record_type": "request_end",
+        "request_id": request_id,
+        "finished_at": utc_now(),
+        "duration_ms": duration_ms,
+        "kind": kind,
+        "method": method,
+        "path": path,
+        "original_model": original_model,
+        "upstream_model": upstream_model,
+        "status_code": status_code,
+    });
+    if let Some(body) = response_body { record["response_body"] = body.clone(); }
+    if let Some(u) = usage { record["usage"] = u.clone(); }
+    if let Some(e) = error { record["error"] = Value::String(e.to_owned()); }
+    else { record["error"] = Value::Null; }
+    log_record(log, &record).await;
+}
+
+#[cfg(test)]
+mod tests;
