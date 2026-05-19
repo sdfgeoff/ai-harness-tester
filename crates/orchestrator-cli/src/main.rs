@@ -64,6 +64,8 @@ fn run(cli: Cli) -> Result<(), String> {
             config,
             test,
         } => {
+            let batch_started_at = OffsetDateTime::now_utc();
+            let batch_id = batch_id(batch_started_at)?;
             let config = load_config(&config)?;
             let harness_profile = config
                 .harnesses
@@ -74,6 +76,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 .get(&model)
                 .ok_or_else(|| format!("unknown model profile '{model}'"))?;
             run_image(
+                &batch_id,
+                batch_started_at,
+                &config,
                 &harness,
                 harness_profile,
                 &model,
@@ -85,6 +90,9 @@ fn run(cli: Cli) -> Result<(), String> {
 }
 
 fn run_image(
+    batch_id: &str,
+    batch_started_at: OffsetDateTime,
+    config: &Config,
     harness_name: &str,
     harness: &HarnessProfile,
     model_name: &str,
@@ -92,10 +100,22 @@ fn run_image(
     test: Option<&str>,
 ) -> Result<(), String> {
     let selected_test = test.map(load_test_selection).transpose()?;
-    let started_at = OffsetDateTime::now_utc();
+    let started_at = batch_started_at;
     let started = Instant::now();
-    let run_id = run_id(started_at, harness_name)?;
-    let run_dir = PathBuf::from("results").join(&run_id);
+    let test_name = selected_test
+        .as_ref()
+        .map(|test| test.name.as_str())
+        .unwrap_or("no-test");
+    let run_id = run_id(batch_id, harness_name, model_name, test_name);
+    let batch_dir = PathBuf::from("results").join(batch_id);
+    fs::create_dir_all(&batch_dir).map_err(|error| {
+        format!(
+            "failed to create batch directory {}: {error}",
+            batch_dir.display()
+        )
+    })?;
+    write_redacted_config_snapshot(&batch_dir, config)?;
+    let run_dir = batch_dir.join("runs").join(&run_id);
     fs::create_dir_all(&run_dir).map_err(|error| {
         format!(
             "failed to create run directory {}: {error}",
@@ -205,6 +225,7 @@ fn run_image(
     };
     let result = RunResult {
         run_id: run_id.clone(),
+        batch_id: batch_id.to_owned(),
         status: run_status,
         harness_exit_code,
         started_at: format_timestamp(started_at)?,
@@ -276,6 +297,53 @@ fn load_config(path: &Path) -> Result<Config, String> {
         .map_err(|error| format!("failed to open config {}: {error}", path.display()))?;
     serde_json::from_reader(file)
         .map_err(|error| format!("failed to parse config {}: {error}", path.display()))
+}
+
+#[derive(Debug, Serialize)]
+struct RedactedConfig<'a> {
+    models: BTreeMap<&'a str, RedactedModelProfile<'a>>,
+    harnesses: &'a BTreeMap<String, HarnessProfile>,
+}
+
+#[derive(Debug, Serialize)]
+struct RedactedModelProfile<'a> {
+    model_name: &'a str,
+    base_url: &'a str,
+    api_key: &'static str,
+}
+
+fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Result<(), String> {
+    let models = config
+        .models
+        .iter()
+        .map(|(name, profile)| {
+            (
+                name.as_str(),
+                RedactedModelProfile {
+                    model_name: &profile.model_name,
+                    base_url: &profile.base_url,
+                    api_key: "<redacted>",
+                },
+            )
+        })
+        .collect();
+    let redacted = RedactedConfig {
+        models,
+        harnesses: &config.harnesses,
+    };
+    let path = batch_dir.join("config.json");
+    let file = File::create(&path).map_err(|error| {
+        format!(
+            "failed to create redacted config snapshot {}: {error}",
+            path.display()
+        )
+    })?;
+    serde_json::to_writer_pretty(file, &redacted).map_err(|error| {
+        format!(
+            "failed to write redacted config snapshot {}: {error}",
+            path.display()
+        )
+    })
 }
 
 #[derive(Debug)]
@@ -546,6 +614,7 @@ fn join_log_thread(handle: thread::JoinHandle<Result<(), String>>) -> Result<(),
 #[derive(Debug, Serialize)]
 struct RunResult {
     run_id: String,
+    batch_id: String,
     status: RunStatus,
     harness_exit_code: Option<i32>,
     started_at: String,
@@ -612,13 +681,18 @@ fn write_results(run_dir: &Path, result: &RunResult) -> Result<(), String> {
         .map_err(|error| format!("failed to write results file {}: {error}", path.display()))
 }
 
-fn run_id(started_at: OffsetDateTime, image: &str) -> Result<String, String> {
-    let timestamp = started_at
+fn batch_id(started_at: OffsetDateTime) -> Result<String, String> {
+    started_at
         .format(RUN_ID_TIME_FORMAT)
-        .map_err(|error| format!("failed to format run timestamp: {error}"))?;
-    let image = sanitize_fragment(image);
+        .map_err(|error| format!("failed to format batch timestamp: {error}"))
+}
+
+fn run_id(batch_id: &str, harness: &str, model: &str, test: &str) -> String {
+    let harness = sanitize_fragment(harness);
+    let model = sanitize_fragment(model);
+    let test = sanitize_fragment(test);
     let suffix = short_suffix();
-    Ok(format!("{timestamp}_{image}_{suffix}"))
+    format!("{batch_id}_{harness}_{model}_{test}_{suffix}")
 }
 
 fn sanitize_fragment(value: &str) -> String {

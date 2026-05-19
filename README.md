@@ -77,12 +77,15 @@ The command writes a minimal run artifact:
 
 ```text
 results/
-  <run_id>/
-    logs/
-      harness.log
-    working_dir/
-    PROMPT.md
-    results.json
+  <batch_id>/
+    config.json
+    runs/
+      <run_id>/
+        logs/
+          harness.log
+        working_dir/
+        PROMPT.md
+        results.json
 ```
 
 At this stage `results.json` records run ID, status, timestamps, duration, harness exit code, and the relative harness log path. Harness stdout and stderr are captured together in `logs/harness.log` and streamed live to the console with the run ID as a prefix.
@@ -115,3 +118,5 @@ Harnesses are selected by name from `config.json`:
 ```
 
 The selected model profile is recorded in `results.json` with non-secret resolved values only. The model API key is not written to run artifacts.
+
+Each CLI invocation creates a UTC batch directory under `results/`. Run IDs include the batch timestamp, harness, model, test, and a short suffix. A redacted copy of the launch config is written to `results/<batch_id>/config.json`.
