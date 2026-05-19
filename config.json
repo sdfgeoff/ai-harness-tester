@@ -17,6 +17,9 @@
     },
     "pi": {
       "image": "harness-test/pi"
+    },
+    "opencode": {
+      "image": "harness-test/opencode"
     }
   }
 }
