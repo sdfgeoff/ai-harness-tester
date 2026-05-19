@@ -90,7 +90,9 @@ results/
 
 At this stage `results.json` records run ID, status, timestamps, duration, harness exit code, and the relative harness log path. Harness stdout and stderr are captured together in `logs/harness.log` and streamed live to the console with the run ID as a prefix.
 
-When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`. The `--tests`, `--harnesses`, and `--models` flags accept comma-separated values; full matrix execution is added in a later ticket.
+When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`. The `--tests`, `--harnesses`, and `--models` flags accept comma-separated values.
+
+Selected combinations run sequentially in test/model/harness order. A failed harness run is preserved and does not stop later selected combinations. The CLI exits non-zero after the batch if any run failed.
 
 The selected test archive is extracted into `working_dir` at the root of the run artifact. Archive entries with absolute paths, `..` path traversal, or symlinks are rejected before Docker starts.
 

@@ -65,6 +65,7 @@ fn run(cli: Cli) -> Result<(), String> {
             tests,
         } => {
             let batch_started_at = OffsetDateTime::now_utc();
+            let batch_started = Instant::now();
             let batch_id = batch_id(batch_started_at)?;
             let config = load_config(&config)?;
             let selected_harnesses = parse_selection_list("harnesses", &harnesses)?;
@@ -85,27 +86,44 @@ fn run(cli: Cli) -> Result<(), String> {
                 load_test_selection(test)?;
             }
 
-            let harness = &selected_harnesses[0];
-            let model = &selected_models[0];
-            let test = &selected_tests[0];
-            let harness_profile = config
-                .harnesses
-                .get(harness)
-                .ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
-            let model_profile = config
-                .models
-                .get(model)
-                .ok_or_else(|| format!("unknown model profile '{model}'"))?;
-            run_image(
-                &batch_id,
-                batch_started_at,
-                &config,
-                harness,
-                harness_profile,
-                model,
-                model_profile,
-                Some(test.as_str()),
-            )
+            let mut failed_runs = 0usize;
+            for test in &selected_tests {
+                for model in &selected_models {
+                    for harness in &selected_harnesses {
+                        let harness_profile = config
+                            .harnesses
+                            .get(harness)
+                            .ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
+                        let model_profile = config
+                            .models
+                            .get(model)
+                            .ok_or_else(|| format!("unknown model profile '{model}'"))?;
+                        let status = run_image(
+                            &batch_id,
+                            &config,
+                            harness,
+                            harness_profile,
+                            model,
+                            model_profile,
+                            Some(test.as_str()),
+                        )?;
+                        if status != RunStatus::Completed {
+                            failed_runs += 1;
+                        }
+                    }
+                }
+            }
+
+            if failed_runs > 0 {
+                Err(format!("{failed_runs} run(s) failed"))
+            } else {
+                let duration = batch_started.elapsed();
+                println!(
+                    "batch {batch_id} completed successfully in {:.2?}",
+                    duration
+                );
+                Ok(())
+            }
         }
     }
 }
@@ -127,16 +145,15 @@ fn parse_selection_list(kind: &str, raw: &str) -> Result<Vec<String>, String> {
 
 fn run_image(
     batch_id: &str,
-    batch_started_at: OffsetDateTime,
     config: &Config,
     harness_name: &str,
     harness: &HarnessProfile,
     model_name: &str,
     model: &ModelProfile,
     test: Option<&str>,
-) -> Result<(), String> {
+) -> Result<RunStatus, String> {
     let selected_test = test.map(load_test_selection).transpose()?;
-    let started_at = batch_started_at;
+    let started_at = OffsetDateTime::now_utc();
     let started = Instant::now();
     let test_name = selected_test
         .as_ref()
@@ -297,16 +314,19 @@ fn run_image(
     match status.code() {
         Some(0) => {
             println!("container completed successfully in {:.2?}", duration);
-            Ok(())
+            Ok(RunStatus::Completed)
         }
-        Some(code) => Err(format!(
-            "container exited with status {code} after {:.2?}",
-            duration
-        )),
-        None => Err(format!(
-            "container terminated without an exit code after {:.2?}",
-            duration
-        )),
+        Some(code) => {
+            eprintln!("container exited with status {code} after {:.2?}", duration);
+            Ok(RunStatus::Failed)
+        }
+        None => {
+            eprintln!(
+                "container terminated without an exit code after {:.2?}",
+                duration
+            );
+            Ok(RunStatus::Failed)
+        }
     }
 }
 
@@ -702,7 +722,7 @@ struct RunArtifacts {
     harness_log: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum RunStatus {
     Completed,
