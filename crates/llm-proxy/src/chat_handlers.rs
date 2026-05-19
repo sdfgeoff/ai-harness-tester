@@ -277,10 +277,11 @@ async fn log_request_end(
         "upstream_model": upstream_model,
         "status_code": status_code,
     });
-    if let Some(body) = response_body { record["response_body"] = body.clone(); }
-    if let Some(u) = usage { record["usage"] = u.clone(); }
-    if let Some(e) = error { record["error"] = Value::String(e.to_owned()); }
-    else { record["error"] = Value::Null; }
+    if let Some(body) = response_body { if let Some(obj) = record.as_object_mut() { obj.insert("response_body".to_owned(), body.clone()); } }
+    if let Some(u) = usage { if let Some(obj) = record.as_object_mut() { obj.insert("usage".to_owned(), u.clone()); }
+    } else { if let Some(obj) = record.as_object_mut() { obj.insert("usage".to_owned(), Value::Null); } }
+    if let Some(e) = error { if let Some(obj) = record.as_object_mut() { obj.insert("error".to_owned(), Value::String(e.to_owned())); }
+    } else { if let Some(obj) = record.as_object_mut() { obj.insert("error".to_owned(), Value::Null); } }
     log_record(log, &record).await;
 }
 

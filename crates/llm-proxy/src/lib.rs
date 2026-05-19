@@ -1,5 +1,4 @@
 mod anthropic_handlers;
-mod anthropic_sse;
 mod chat_handlers;
 mod handlers;
 mod streaming;
