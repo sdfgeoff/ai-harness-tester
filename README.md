@@ -158,3 +158,57 @@ After all selected runs finish, `summary.json` is written at the batch root. It 
 ## Proxy
 
 The `llm-proxy` crate provides the in-process per-run proxy. It starts on a random local port, generates a per-run API key, requires bearer auth, serves `GET /v1/models` with a minimal response containing only the selected model, and forwards non-streaming `POST /v1/responses` requests upstream. For `/v1/responses`, the proxy rewrites `model` to the selected model profile's `model_name` and preserves other request fields.
+
+### Proxy Log Format
+
+Each run writes an append-only NDJSON log at `logs/proxy.ndjson`. Every proxied request produces linked `request_start` and `request_end` records identified by a shared `request_id`.
+
+**`request_start`** — written when the proxy receives a request:
+
+```json
+{
+  "record_type": "request_start",
+  "request_id": "...",
+  "started_at": "2026-05-19T09:16:00Z",
+  "kind": "generation",
+  "method": "POST",
+  "path": "/v1/responses",
+  "original_model": "gpt-4o",
+  "upstream_model": "qwen2.5-coder:32b",
+  "request_body": {}
+}
+```
+
+- `kind` is `"generation"` for `/v1/responses` and `"discovery"` for `/v1/models`.
+- `request_body` is present only for authorized requests. Auth failures omit it.
+- `request_body` contains the payload *after* model rewrite (i.e., `model` is the upstream model).
+
+**`request_end`** — written when the upstream response is received or an error occurs:
+
+```json
+{
+  "record_type": "request_end",
+  "request_id": "...",
+  "finished_at": "2026-05-19T09:16:05Z",
+  "duration_ms": 5000,
+  "kind": "generation",
+  "method": "POST",
+  "path": "/v1/responses",
+  "original_model": "gpt-4o",
+  "upstream_model": "qwen2.5-coder:32b",
+  "status_code": 200,
+  "response_body": {},
+  "usage": {
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "total_tokens": 150,
+    "cache_read_tokens": null,
+    "cache_write_tokens": null
+  },
+  "error": null
+}
+```
+
+- `usage` is extracted from the upstream response's `usage` object when present.
+- `error` is `null` on success, or a descriptive string on failure (e.g., connection error, auth failure).
+- `/v1/models` discovery requests are logged but excluded from generation metrics.

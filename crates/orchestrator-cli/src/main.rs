@@ -282,10 +282,12 @@ fn run_image(
         .transpose()?;
     let runtime = tokio::runtime::Runtime::new()
         .map_err(|error| format!("failed to create async runtime: {error}"))?;
+    let proxy_log_path = logs_dir.join("proxy.ndjson");
     let proxy = runtime.block_on(llm_proxy::start_proxy(llm_proxy::ProxyConfig {
         model_name: model.model_name.clone(),
         upstream_base_url: model.base_url.clone(),
         upstream_api_key: model.api_key.clone(),
+        proxy_log_path,
     }))?;
 
     println!(
@@ -402,6 +404,7 @@ fn run_image(
             working_dir: working_dir.map(|_| "working_dir".to_owned()),
             prompt: prompt_artifact,
             harness_log: "logs/harness.log".to_owned(),
+            proxy_log: "logs/proxy.ndjson".to_owned(),
         },
     };
     write_results(&run_dir, &result)?;
@@ -855,6 +858,7 @@ struct RunArtifacts {
     #[serde(skip_serializing_if = "Option::is_none")]
     prompt: Option<String>,
     harness_log: String,
+    proxy_log: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
