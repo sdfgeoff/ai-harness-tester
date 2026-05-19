@@ -143,3 +143,7 @@ After all selected runs finish, `summary.json` is written at the batch root. It 
   ]
 }
 ```
+
+## Proxy
+
+The `llm-proxy` crate provides the in-process per-run proxy. At this stage it can start on a random local port, generate a per-run API key, require bearer auth, and serve `GET /v1/models` with a minimal response containing only the selected model.
