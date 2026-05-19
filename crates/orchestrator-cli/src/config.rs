@@ -88,10 +88,12 @@ pub fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Resu
 
 // ── Preflight helpers ───────────────────────────────────────────────────────
 
-pub fn inspect_docker_image(harness_name: &str, image: &str) -> Result<(), String> {
+pub fn inspect_docker_image(harness_name: &str, image: &str) -> Result<String, String> {
     let output = Command::new("docker")
         .arg("image")
         .arg("inspect")
+        .arg("--format")
+        .arg("{{.Id}}")
         .arg(image)
         .output()
         .map_err(|error| {
@@ -99,7 +101,8 @@ pub fn inspect_docker_image(harness_name: &str, image: &str) -> Result<(), Strin
         })?;
 
     if output.status.success() {
-        Ok(())
+        let image_id = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        Ok(image_id)
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         Err(format!(

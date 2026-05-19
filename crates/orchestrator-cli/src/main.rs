@@ -97,11 +97,13 @@ fn execute_batch(
     let config = load_config(config_path)?;
 
     // Preflight validation
+    let mut harness_image_ids: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
     for harness in selected_harnesses {
         let Some(profile) = config.harnesses.get(harness) else {
             return Err(format!("unknown harness profile '{harness}'"));
         };
-        inspect_docker_image(harness, &profile.image)?;
+        let image_id = inspect_docker_image(harness, &profile.image)?;
+        harness_image_ids.insert(harness.clone(), image_id);
     }
     for model in selected_models {
         let Some(profile) = config.models.get(model) else {
@@ -134,6 +136,7 @@ fn execute_batch(
                     &config,
                     harness,
                     harness_profile,
+                    harness_image_ids.get(harness).expect("preflight validated"),
                     model,
                     model_profile,
                     Some(test.as_str()),

@@ -36,6 +36,7 @@ pub fn execute_run(
     config: &Config,
     harness_name: &str,
     harness: &HarnessProfile,
+    harness_image_id: &str,
     model_name: &str,
     model: &ModelProfile,
     test: Option<&str>,
@@ -47,6 +48,7 @@ pub fn execute_run(
         .as_ref()
         .map(|test| test.name.as_str())
         .unwrap_or("no-test");
+    let test_name_owned = test_name.to_string();
     let run_id = run_id(batch_id, harness_name, model_name, test_name);
 
     // Create directories
@@ -143,12 +145,14 @@ pub fn execute_run(
                 duration_ms: duration_ms(duration),
                 inputs: None,
                 selection: RunSelection {
+                    test: test_name_owned.clone(),
                     harness: harness_name.to_owned(),
                     model: model_name.to_owned(),
                 },
                 resolved: RunResolved {
                     harness: ResolvedHarness {
                         image: harness.image.clone(),
+                        image_id: Some(harness_image_id.to_owned()),
                     },
                     model: ResolvedModel {
                         model_name: model.model_name.clone(),
@@ -259,12 +263,14 @@ pub fn execute_run(
                 duration_ms: duration_ms(duration),
                 inputs: None,
                 selection: RunSelection {
+                    test: test_name_owned.clone(),
                     harness: harness_name.to_owned(),
                     model: model_name.to_owned(),
                 },
                 resolved: RunResolved {
                     harness: ResolvedHarness {
                         image: harness.image.clone(),
+                        image_id: Some(harness_image_id.to_owned()),
                     },
                     model: ResolvedModel {
                         model_name: model.model_name.clone(),
@@ -363,7 +369,15 @@ pub fn execute_run(
             Some(0) => RunStatus::Completed,
             _ => RunStatus::Failed,
         };
-        (run_status, harness_exit_code, None)
+        let error = if run_status == RunStatus::Failed {
+            Some(RunError {
+                kind: "failed".to_owned(),
+                message: format!("Harness exited with code {:?}", harness_exit_code),
+            })
+        } else {
+            None
+        };
+        (run_status, harness_exit_code, error)
     };
 
     let result = RunResult {
@@ -376,17 +390,18 @@ pub fn execute_run(
         finished_at: format_timestamp(finished_at)?,
         duration_ms: duration_ms(duration),
         inputs: selected_test.map(|test| RunInputs {
-            test: test.name,
             initial_state_sha256: test.initial_state_sha256,
             prompt_sha256: test.prompt_sha256,
         }),
         selection: RunSelection {
+            test: test_name_owned.clone(),
             harness: harness_name.to_owned(),
             model: model_name.to_owned(),
         },
         resolved: RunResolved {
             harness: ResolvedHarness {
                 image: harness.image.clone(),
+                image_id: Some(harness_image_id.to_owned()),
             },
             model: ResolvedModel {
                 model_name: model.model_name.clone(),

@@ -32,13 +32,13 @@ pub struct RunError {
 
 #[derive(Debug, Serialize)]
 pub struct RunInputs {
-    pub test: String,
     pub initial_state_sha256: String,
     pub prompt_sha256: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct RunSelection {
+    pub test: String,
     pub harness: String,
     pub model: String,
 }
@@ -52,6 +52,8 @@ pub struct RunResolved {
 #[derive(Debug, Serialize)]
 pub struct ResolvedHarness {
     pub image: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
