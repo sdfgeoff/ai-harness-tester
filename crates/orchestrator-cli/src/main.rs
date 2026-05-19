@@ -284,6 +284,8 @@ fn run_image(
         .map_err(|error| format!("failed to create async runtime: {error}"))?;
     let proxy = runtime.block_on(llm_proxy::start_proxy(llm_proxy::ProxyConfig {
         model_name: model.model_name.clone(),
+        upstream_base_url: model.base_url.clone(),
+        upstream_api_key: model.api_key.clone(),
     }))?;
 
     println!(
