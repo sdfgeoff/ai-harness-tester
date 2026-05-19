@@ -157,7 +157,7 @@ After all selected runs finish, `summary.json` is written at the batch root. It 
 
 ## Proxy
 
-The `llm-proxy` crate provides the in-process per-run proxy. It starts on a random local port, generates a per-run API key, requires bearer auth, serves `GET /v1/models` with a minimal response containing only the selected model, and forwards non-streaming `POST /v1/responses` requests upstream. For `/v1/responses`, the proxy rewrites `model` to the selected model profile's `model_name` and preserves other request fields.
+The `llm-proxy` crate provides the in-process per-run proxy. It starts on a random local port, generates a per-run API key, requires bearer auth, serves `GET /v1/models` with a minimal response containing only the selected model, and forwards `POST /v1/responses` requests upstream. For `/v1/responses`, the proxy rewrites `model` to the selected model profile's `model_name` and preserves other request fields. Both streaming (`stream: true`) and non-streaming responses are supported.
 
 ### Proxy Log Format
 
@@ -213,6 +213,23 @@ Each run writes an append-only NDJSON log at `logs/proxy.ndjson`. Every proxied 
 - `error` is `null` on success, or a descriptive string on failure (e.g., connection error, auth failure).
 - `/v1/models` discovery requests are logged but excluded from generation metrics.
 
+**Streaming responses** — when the request body contains `stream: true`, the proxy forwards upstream SSE events in real-time. Each SSE `data:` line is logged as a separate `stream_event` record:
+
+```json
+{
+  "record_type": "stream_event",
+  "request_id": "...",
+  "received_at": "2026-05-19T09:16:01Z",
+  "event": "response.output_text.delta",
+  "data_raw": "{\"type\":\"response.output_text.delta\",\"delta\":\"Hello\"}"
+}
+```
+
+- `data_raw` stores the raw SSE `data:` text, not parsed JSON.
+- `event` stores the SSE event name when present.
+- The `request_end` for streaming requests has `response_body: null` and `usage` extracted from stream events when available.
+- Usage extracted from streaming responses feeds into the same metrics aggregation as non-streaming responses.
+
 ### Metrics
 
 After each run, the orchestrator aggregates `proxy.ndjson` into the `metrics` block of `results.json`:
@@ -233,3 +250,30 @@ After each run, the orchestrator aggregates `proxy.ndjson` into the `metrics` bl
 - `request_count` counts all `/v1/responses` generation requests. Discovery (`/v1/models`) traffic is excluded.
 - Token fields (`input_tokens`, `output_tokens`, `total_tokens`) are summed across all generation requests. If **any** request is missing the upstream usage data for a given field, the aggregate for that field is `null`.
 - Cache fields (`cache_read_tokens`, `cache_write_tokens`) follow the same rule: summed when all requests report them, `null` otherwise.
+
+## Run Timeout
+
+The orchestrator enforces a wall-clock timeout per run, configured via `timeout_seconds` in `config.json` (default: 1800 seconds). When a run exceeds its timeout:
+
+- The harness container is killed via `docker kill`.
+- `results.json.status` is set to `timed_out`.
+- `harness_exit_code` is `null` (no exit code available).
+- `error` contains a structured object: `{"kind": "timeout", "message": "..."}`.
+- Partial artifacts (logs, `working_dir`, `proxy.ndjson`) are preserved.
+
+## Run Status Semantics
+
+| Status | When | `harness_exit_code` | `error` |
+|---|---|---|---|
+| `completed` | Container exits with code 0 | `0` | `null` |
+| `failed` | Container exits with non-zero code | non-zero integer | `null` |
+| `timed_out` | Wall-clock timeout exceeded | `null` | `{"kind": "timeout", ...}` |
+| `setup_failed` | Pre-harness setup error (extraction, proxy, docker) | `null` | `{"kind": "setup_failed", ...}` |
+
+Setup failures occur after the batch starts but before the harness container runs. Examples:
+- Failed `initial_state.zip` extraction
+- Failed temporary prompt file creation
+- Proxy startup failure
+- Docker container spawn failure
+
+Setup-failed runs are included in `summary.json` and the batch continues to subsequent runs.

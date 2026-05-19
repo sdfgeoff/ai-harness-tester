@@ -11,7 +11,7 @@ use tokio::runtime::Runtime;
 use crate::{
     config::{Config, HarnessProfile, ModelProfile},
     models::{
-        ResolvedHarness, ResolvedModel, RunArtifacts, RunExecution, RunInputs,
+        ResolvedHarness, ResolvedModel, RunArtifacts, RunError, RunExecution, RunInputs,
         RunMetrics, RunResult, RunResolved, RunSelection, RunStatus,
     },
     output::{copy_output, join_log_thread},
@@ -21,6 +21,15 @@ use crate::{
     },
     util::{format_timestamp, duration_ms, run_id},
 };
+
+/// Intermediate state after successful setup, before harness execution.
+struct SetupResult {
+    working_dir: Option<PathBuf>,
+    temp_prompt: Option<crate::test_selection::TempPrompt>,
+    runtime: Runtime,
+    proxy_log_path: PathBuf,
+    proxy: llm_proxy::ProxyHandle,
+}
 
 pub fn execute_run(
     batch_id: &str,
@@ -76,32 +85,106 @@ pub fn execute_run(
         },
     )?));
 
-    // Working directory
-    let working_dir = selected_test
-        .as_ref()
-        .map(|test| {
-            let working_dir = run_dir.join("working_dir");
-            extract_initial_state(&test.initial_state_path, &working_dir)?;
-            Ok::<PathBuf, String>(working_dir)
+    // Setup phase: catch errors and write setup_failed results
+    let setup = || -> Result<SetupResult, String> {
+        // Working directory
+        let working_dir = selected_test
+            .as_ref()
+            .map(|test| {
+                let working_dir = run_dir.join("working_dir");
+                extract_initial_state(&test.initial_state_path, &working_dir)?;
+                Ok::<PathBuf, String>(working_dir)
+            })
+            .transpose()?;
+
+        // Temp prompt
+        let temp_prompt = selected_test
+            .as_ref()
+            .map(|test| prepare_temp_prompt(&run_id, &test.prompt_path))
+            .transpose()?;
+
+        // Start proxy
+        let runtime = Runtime::new()
+            .map_err(|error| format!("failed to create async runtime: {error}"))?;
+        let proxy_log_path = logs_dir.join("proxy.ndjson");
+        let proxy = runtime.block_on(llm_proxy::start_proxy(llm_proxy::ProxyConfig {
+            model_name: model.model_name.clone(),
+            upstream_base_url: model.base_url.clone(),
+            upstream_api_key: model.api_key.clone(),
+            proxy_log_path: proxy_log_path.clone(),
+        }))?;
+
+        Ok(SetupResult {
+            working_dir,
+            temp_prompt,
+            runtime,
+            proxy_log_path,
+            proxy,
         })
-        .transpose()?;
+    }();
 
-    // Temp prompt
-    let temp_prompt = selected_test
-        .as_ref()
-        .map(|test| prepare_temp_prompt(&run_id, &test.prompt_path))
-        .transpose()?;
+    let setup = match setup {
+        Ok(s) => s,
+        Err(error) => {
+            eprintln!("setup failed for run {}: {}", run_id, error);
+            let duration = started.elapsed();
+            let finished_at = OffsetDateTime::now_utc();
+            let result = RunResult {
+                run_id: run_id.clone(),
+                batch_id: batch_id.to_owned(),
+                status: RunStatus::SetupFailed,
+                harness_exit_code: None,
+                error: Some(RunError {
+                    kind: "setup_failed".to_owned(),
+                    message: error,
+                }),
+                started_at: format_timestamp(started_at)?,
+                finished_at: format_timestamp(finished_at)?,
+                duration_ms: duration_ms(duration),
+                inputs: None,
+                selection: RunSelection {
+                    harness: harness_name.to_owned(),
+                    model: model_name.to_owned(),
+                },
+                resolved: RunResolved {
+                    harness: ResolvedHarness {
+                        image: harness.image.clone(),
+                    },
+                    model: ResolvedModel {
+                        model_name: model.model_name.clone(),
+                        base_url: model.base_url.clone(),
+                    },
+                },
+                metrics: RunMetrics {
+                    request_count: 0,
+                    input_tokens: Some(0),
+                    output_tokens: Some(0),
+                    total_tokens: Some(0),
+                    cache_read_tokens: Some(0),
+                    cache_write_tokens: Some(0),
+                },
+                artifacts: RunArtifacts {
+                    working_dir: None,
+                    prompt: None,
+                    harness_log: "logs/harness.log".to_owned(),
+                    proxy_log: "logs/proxy.ndjson".to_owned(),
+                },
+            };
+            crate::models::write_results(&run_dir, &result)?;
+            return Ok(RunExecution {
+                run_id,
+                status: RunStatus::SetupFailed,
+            });
+        }
+    };
 
-    // Start proxy
-    let runtime = Runtime::new()
-        .map_err(|error| format!("failed to create async runtime: {error}"))?;
-    let proxy_log_path = logs_dir.join("proxy.ndjson");
-    let proxy = runtime.block_on(llm_proxy::start_proxy(llm_proxy::ProxyConfig {
-        model_name: model.model_name.clone(),
-        upstream_base_url: model.base_url.clone(),
-        upstream_api_key: model.api_key.clone(),
-        proxy_log_path: proxy_log_path.clone(),
-    }))?;
+    let SetupResult {
+        working_dir,
+        temp_prompt,
+        runtime,
+        proxy_log_path,
+        proxy,
+    } = setup;
 
     println!(
         "running harness '{harness_name}' with image: {}",
@@ -109,8 +192,9 @@ pub fn execute_run(
     );
 
     // Build and run Docker command
+    let container_name = format!("harness-test-{run_id}");
     let mut command = Command::new("docker");
-    command.arg("run").arg("--rm");
+    command.arg("run").arg("--rm").arg("--name").arg(&container_name);
 
     if let Some(working_dir) = working_dir.as_ref() {
         let mount_source = fs::canonicalize(working_dir).map_err(|error| {
@@ -157,7 +241,56 @@ pub fn execute_run(
         Ok(child) => child,
         Err(error) => {
             runtime.block_on(proxy.shutdown())?;
-            return Err(format!("failed to start docker: {error}"));
+            // Docker spawn failure is a setup failure
+            eprintln!("setup failed for run {}: failed to start docker: {}", run_id, error);
+            let duration = started.elapsed();
+            let finished_at = OffsetDateTime::now_utc();
+            let result = RunResult {
+                run_id: run_id.clone(),
+                batch_id: batch_id.to_owned(),
+                status: RunStatus::SetupFailed,
+                harness_exit_code: None,
+                error: Some(RunError {
+                    kind: "setup_failed".to_owned(),
+                    message: format!("failed to start docker: {error}"),
+                }),
+                started_at: format_timestamp(started_at)?,
+                finished_at: format_timestamp(finished_at)?,
+                duration_ms: duration_ms(duration),
+                inputs: None,
+                selection: RunSelection {
+                    harness: harness_name.to_owned(),
+                    model: model_name.to_owned(),
+                },
+                resolved: RunResolved {
+                    harness: ResolvedHarness {
+                        image: harness.image.clone(),
+                    },
+                    model: ResolvedModel {
+                        model_name: model.model_name.clone(),
+                        base_url: model.base_url.clone(),
+                    },
+                },
+                metrics: RunMetrics {
+                    request_count: 0,
+                    input_tokens: Some(0),
+                    output_tokens: Some(0),
+                    total_tokens: Some(0),
+                    cache_read_tokens: Some(0),
+                    cache_write_tokens: Some(0),
+                },
+                artifacts: RunArtifacts {
+                    working_dir: working_dir.map(|_| "working_dir".to_owned()),
+                    prompt: None,
+                    harness_log: "logs/harness.log".to_owned(),
+                    proxy_log: "logs/proxy.ndjson".to_owned(),
+                },
+            };
+            crate::models::write_results(&run_dir, &result)?;
+            return Ok(RunExecution {
+                run_id,
+                status: RunStatus::SetupFailed,
+            });
         }
     };
 
@@ -173,9 +306,32 @@ pub fn execute_run(
     let stdout_thread = copy_output(stdout, Arc::clone(&harness_log), run_id.clone());
     let stderr_thread = copy_output(stderr, Arc::clone(&harness_log), run_id.clone());
 
-    let status = child
-        .wait()
-        .map_err(|error| format!("failed to wait for docker: {error}"))?;
+    // Wait for container with timeout
+    let timeout_instant = std::time::Instant::now() + std::time::Duration::from_secs(config.timeout_seconds);
+    let (status, timed_out) = loop {
+        match child.try_wait() {
+            Ok(Some(s)) => break (s, false),
+            Ok(None) => {
+                if std::time::Instant::now() >= timeout_instant {
+                    eprintln!(
+                        "run {} exceeded timeout of {} seconds, killing container",
+                        run_id, config.timeout_seconds
+                    );
+                    // Kill the container
+                    let _ = Command::new("docker")
+                        .arg("kill")
+                        .arg(format!("harness-test-{run_id}"))
+                        .output();
+                    let _ = child.kill();
+                    break (child.wait().unwrap_or_default(), true);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            Err(error) => {
+                return Err(format!("failed to check docker status: {error}"));
+            }
+        }
+    };
 
     join_log_thread(stdout_thread)?;
     join_log_thread(stderr_thread)?;
@@ -196,10 +352,18 @@ pub fn execute_run(
     // Build and write results
     let duration = started.elapsed();
     let finished_at = OffsetDateTime::now_utc();
-    let harness_exit_code = status.code();
-    let run_status = match harness_exit_code {
-        Some(0) => RunStatus::Completed,
-        _ => RunStatus::Failed,
+    let (run_status, harness_exit_code, error) = if timed_out {
+        (RunStatus::TimedOut, None, Some(RunError {
+            kind: "timeout".to_owned(),
+            message: format!("Run exceeded timeout of {} seconds", config.timeout_seconds),
+        }))
+    } else {
+        let harness_exit_code = status.code();
+        let run_status = match harness_exit_code {
+            Some(0) => RunStatus::Completed,
+            _ => RunStatus::Failed,
+        };
+        (run_status, harness_exit_code, None)
     };
 
     let result = RunResult {
@@ -207,6 +371,7 @@ pub fn execute_run(
         batch_id: batch_id.to_owned(),
         status: run_status,
         harness_exit_code,
+        error,
         started_at: format_timestamp(started_at)?,
         finished_at: format_timestamp(finished_at)?,
         duration_ms: duration_ms(duration),
@@ -240,29 +405,33 @@ pub fn execute_run(
     crate::models::write_results(&run_dir, &result)?;
     println!("wrote {}", run_dir.join("results.json").display());
 
-    match status.code() {
-        Some(0) => {
+    match run_status {
+        RunStatus::Completed => {
             println!("container completed successfully in {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
                 status: RunStatus::Completed,
             })
         }
-        Some(code) => {
-            eprintln!("container exited with status {code} after {:.2?}", duration);
+        RunStatus::TimedOut => {
+            eprintln!("container timed out after {:.2?}", duration);
+            Ok(RunExecution {
+                run_id,
+                status: RunStatus::TimedOut,
+            })
+        }
+        RunStatus::Failed => {
+            eprintln!("container failed after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
                 status: RunStatus::Failed,
             })
         }
-        None => {
-            eprintln!(
-                "container terminated without an exit code after {:.2?}",
-                duration
-            );
+        RunStatus::SetupFailed => {
+            eprintln!("setup failed after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
-                status: RunStatus::Failed,
+                status: RunStatus::SetupFailed,
             })
         }
     }

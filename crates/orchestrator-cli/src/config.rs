@@ -8,8 +8,14 @@ use std::{
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_timeout")]
+    pub timeout_seconds: u64,
     pub models: BTreeMap<String, ModelProfile>,
     pub harnesses: BTreeMap<String, HarnessProfile>,
+}
+
+fn default_timeout() -> u64 {
+    1800
 }
 
 #[derive(Debug, Deserialize, Serialize)]

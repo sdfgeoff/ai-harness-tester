@@ -15,46 +15,64 @@ use crate::{
     utc_now,
 };
 
+/// Main entry point for POST /v1/responses.
+/// Detects streaming requests and routes to the appropriate handler.
 pub async fn responses(
+    State(state): State<ProxyState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    // Quick auth check before parsing
+    if !is_authorized(&headers, &state.api_key) {
+        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/responses").await;
+    }
+
+    // Parse request body to check for streaming
+    let payload = match serde_json::from_slice::<Value>(&body) {
+        Ok(Value::Object(payload)) => payload,
+        Ok(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "request body must be a JSON object",
+            )
+                .into_response()
+        }
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "request body must be valid JSON",
+            )
+                .into_response()
+        }
+    };
+
+    // Check if this is a streaming request
+    let is_streaming = payload.get("stream").and_then(Value::as_bool) == Some(true);
+
+    if is_streaming {
+        crate::streaming::responses_streaming(
+            State(state),
+            headers,
+            body,
+        ).await
+    } else {
+        responses_non_streaming(
+            State(state),
+            headers,
+            body,
+        ).await
+    }
+}
+
+/// Handle non-streaming POST /v1/responses requests.
+async fn responses_non_streaming(
     State(state): State<ProxyState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
     // Auth check — log failure without request body
     if !is_authorized(&headers, &state.api_key) {
-        let request_id = generate_request_id();
-        let started_at = utc_now();
-        log_record(
-            &state.log,
-            &json!({
-                "record_type": "request_start",
-                "request_id": request_id,
-                "started_at": started_at,
-                "kind": "generation",
-                "method": "POST",
-                "path": "/v1/responses",
-            }),
-        )
-        .await;
-
-        log_record(
-            &state.log,
-            &json!({
-                "record_type": "request_end",
-                "request_id": request_id,
-                "finished_at": utc_now(),
-                "duration_ms": 0,
-                "kind": "generation",
-                "method": "POST",
-                "path": "/v1/responses",
-                "status_code": 401,
-                "error": "unauthorized",
-            }),
-        )
-        .await;
-
-        eprintln!("proxy auth failure: POST /v1/responses");
-        return StatusCode::UNAUTHORIZED.into_response();
+        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/responses").await;
     }
 
     // Parse request body
@@ -330,4 +348,46 @@ pub async fn models(State(state): State<ProxyState>, headers: HeaderMap) -> Resp
     .await;
 
     Json(response_body).into_response()
+}
+
+/// Write start/end records for an auth failure and return 401.
+async fn auth_failure_response(
+    state: &ProxyState,
+    request_id: &str,
+    kind: &str,
+    method: &str,
+    path: &str,
+) -> Response {
+    let started_at = utc_now();
+    log_record(
+        &state.log,
+        &json!({
+            "record_type": "request_start",
+            "request_id": request_id,
+            "started_at": started_at,
+            "kind": kind,
+            "method": method,
+            "path": path,
+        }),
+    )
+    .await;
+
+    log_record(
+        &state.log,
+        &json!({
+            "record_type": "request_end",
+            "request_id": request_id,
+            "finished_at": utc_now(),
+            "duration_ms": 0,
+            "kind": kind,
+            "method": method,
+            "path": path,
+            "status_code": 401,
+            "error": "unauthorized",
+        }),
+    )
+    .await;
+
+    eprintln!("proxy auth failure: {method} {path}");
+    StatusCode::UNAUTHORIZED.into_response()
 }

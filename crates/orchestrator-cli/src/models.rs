@@ -10,6 +10,8 @@ pub struct RunResult {
     pub batch_id: String,
     pub status: RunStatus,
     pub harness_exit_code: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<RunError>,
     pub started_at: String,
     pub finished_at: String,
     pub duration_ms: u64,
@@ -19,6 +21,13 @@ pub struct RunResult {
     pub resolved: RunResolved,
     pub metrics: RunMetrics,
     pub artifacts: RunArtifacts,
+}
+
+/// Structured error for non-completed runs.
+#[derive(Debug, Serialize)]
+pub struct RunError {
+    pub kind: String,
+    pub message: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -232,6 +241,8 @@ pub fn write_batch_summary(batch_dir: &Path, summary: &BatchSummary) -> Result<(
 pub enum RunStatus {
     Completed,
     Failed,
+    TimedOut,
+    SetupFailed,
 }
 
 // ── Results writing ─────────────────────────────────────────────────────────
