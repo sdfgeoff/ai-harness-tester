@@ -6,6 +6,7 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
+use std::time::Instant;
 
 use crate::{
     ProxyState,
@@ -50,7 +51,7 @@ pub async fn responses(
     let is_streaming = payload.get("stream").and_then(Value::as_bool) == Some(true);
 
     if is_streaming {
-        crate::streaming::responses_streaming(
+        responses_streaming(
             State(state),
             headers,
             body,
@@ -64,7 +65,97 @@ pub async fn responses(
     }
 }
 
-/// Handle non-streaming POST /v1/responses requests.
+/// Handle streaming POST /v1/responses requests.
+async fn responses_streaming(
+    State(state): State<ProxyState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if !is_authorized(&headers, &state.api_key) {
+        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/responses").await;
+    }
+
+    let mut payload = match serde_json::from_slice::<Value>(&body) {
+        Ok(Value::Object(payload)) => payload,
+        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
+        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+    };
+
+    let original_model = payload
+        .get("model")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .unwrap_or_default();
+    payload.insert("model".to_owned(), Value::String(state.model_name.clone()));
+
+    let request_id = generate_request_id();
+    let started_at = utc_now();
+    let start_instant = Instant::now();
+
+    log_record(
+        &state.log,
+        &json!({
+            "record_type": "request_start",
+            "request_id": request_id,
+            "started_at": started_at,
+            "kind": "generation",
+            "method": "POST",
+            "path": "/v1/responses",
+            "original_model": original_model,
+            "upstream_model": state.model_name,
+            "request_body": payload,
+        }),
+    )
+    .await;
+
+    let upstream_url = format!(
+        "{}/responses",
+        state.upstream_base_url.trim_end_matches('/')
+    );
+    let mut request = state.client.post(&upstream_url).json(&payload);
+    if !state.upstream_api_key.is_empty() {
+        request = request.bearer_auth(&state.upstream_api_key);
+    }
+
+    let response = match request.send().await {
+        Ok(response) => response,
+        Err(send_error) => {
+            let duration_ms = start_instant.elapsed().as_millis() as u64;
+            log_record(
+                &state.log,
+                &json!({
+                    "record_type": "request_end",
+                    "request_id": request_id,
+                    "finished_at": utc_now(),
+                    "duration_ms": duration_ms,
+                    "kind": "generation",
+                    "method": "POST",
+                    "path": "/v1/responses",
+                    "original_model": original_model,
+                    "upstream_model": state.model_name,
+                    "error": format!("failed to reach upstream model endpoint: {send_error}"),
+                }),
+            )
+            .await;
+            return (
+                StatusCode::BAD_GATEWAY,
+                format!("failed to reach upstream model endpoint: {send_error}"),
+            )
+                .into_response();
+        }
+    };
+
+    crate::streaming::forward_sse(
+        response,
+        &state,
+        request_id,
+        "/v1/responses",
+        original_model,
+        crate::streaming::ApiKind::Responses,
+        start_instant,
+    )
+    .await
+}
 async fn responses_non_streaming(
     State(state): State<ProxyState>,
     headers: HeaderMap,
