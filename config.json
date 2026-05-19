@@ -1,4 +1,11 @@
 {
+  "models": {
+    "smoke-local": {
+      "model_name": "smoke-local",
+      "base_url": "http://localhost:11434/v1",
+      "api_key": "local"
+    }
+  },
   "harnesses": {
     "smoke": {
       "image": "harness-test/smoke:latest"

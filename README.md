@@ -62,13 +62,13 @@ cargo run -p orchestrator-cli -- --help
 Run a Docker image directly:
 
 ```sh
-cargo run -p orchestrator-cli -- run-image --harness smoke --config config.json
+cargo run -p orchestrator-cli -- run-image --harness smoke --model smoke-local --config config.json
 ```
 
 Run an image with a selected test:
 
 ```sh
-cargo run -p orchestrator-cli -- run-image --harness smoke --test smoke --config config.json
+cargo run -p orchestrator-cli -- run-image --harness smoke --model smoke-local --test smoke --config config.json
 ```
 
 At this stage the command runs the image, reports its exit status, and writes minimal run artifacts. Later tickets add working directory mounts, prompt handling, and proxy wiring.
@@ -99,6 +99,13 @@ Harnesses are selected by name from `config.json`:
 
 ```json
 {
+  "models": {
+    "smoke-local": {
+      "model_name": "smoke-local",
+      "base_url": "http://localhost:11434/v1",
+      "api_key": "local"
+    }
+  },
   "harnesses": {
     "smoke": {
       "image": "harness-test/smoke:latest"
@@ -106,3 +113,5 @@ Harnesses are selected by name from `config.json`:
   }
 }
 ```
+
+The selected model profile is recorded in `results.json` with non-secret resolved values only. The model API key is not written to run artifacts.

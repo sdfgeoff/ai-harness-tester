@@ -34,6 +34,9 @@ enum CommandName {
         /// Harness profile name from config.
         #[arg(long)]
         harness: String,
+        /// Model profile name from config.
+        #[arg(long)]
+        model: String,
         /// Config file path.
         #[arg(long, default_value = "config.json")]
         config: PathBuf,
@@ -57,6 +60,7 @@ fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
         CommandName::RunImage {
             harness,
+            model,
             config,
             test,
         } => {
@@ -65,7 +69,17 @@ fn run(cli: Cli) -> Result<(), String> {
                 .harnesses
                 .get(&harness)
                 .ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
-            run_image(&harness, harness_profile, test.as_deref())
+            let model_profile = config
+                .models
+                .get(&model)
+                .ok_or_else(|| format!("unknown model profile '{model}'"))?;
+            run_image(
+                &harness,
+                harness_profile,
+                &model,
+                model_profile,
+                test.as_deref(),
+            )
         }
     }
 }
@@ -73,6 +87,8 @@ fn run(cli: Cli) -> Result<(), String> {
 fn run_image(
     harness_name: &str,
     harness: &HarnessProfile,
+    model_name: &str,
+    model: &ModelProfile,
     test: Option<&str>,
 ) -> Result<(), String> {
     let selected_test = test.map(load_test_selection).transpose()?;
@@ -201,10 +217,15 @@ fn run_image(
         }),
         selection: RunSelection {
             harness: harness_name.to_owned(),
+            model: model_name.to_owned(),
         },
         resolved: RunResolved {
             harness: ResolvedHarness {
                 image: harness.image.clone(),
+            },
+            model: ResolvedModel {
+                model_name: model.model_name.clone(),
+                base_url: model.base_url.clone(),
             },
         },
         artifacts: RunArtifacts {
@@ -234,7 +255,15 @@ fn run_image(
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Config {
+    models: BTreeMap<String, ModelProfile>,
     harnesses: BTreeMap<String, HarnessProfile>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ModelProfile {
+    model_name: String,
+    base_url: String,
+    api_key: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -539,16 +568,24 @@ struct RunInputs {
 #[derive(Debug, Serialize)]
 struct RunSelection {
     harness: String,
+    model: String,
 }
 
 #[derive(Debug, Serialize)]
 struct RunResolved {
     harness: ResolvedHarness,
+    model: ResolvedModel,
 }
 
 #[derive(Debug, Serialize)]
 struct ResolvedHarness {
     image: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ResolvedModel {
+    model_name: String,
+    base_url: String,
 }
 
 #[derive(Debug, Serialize)]
