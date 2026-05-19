@@ -1,0 +1,7 @@
+{
+  "harnesses": {
+    "smoke": {
+      "image": "harness-test/smoke:latest"
+    }
+  }
+}

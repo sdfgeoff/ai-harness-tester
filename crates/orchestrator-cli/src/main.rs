@@ -1,7 +1,8 @@
 use clap::Parser;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
+    collections::BTreeMap,
     fs::{self, File},
     io::{self, BufRead, BufReader, Read, Write},
     path::{Component, Path, PathBuf},
@@ -30,8 +31,12 @@ struct Cli {
 enum CommandName {
     /// Run a Docker image once and report its exit status.
     RunImage {
-        /// Docker image tag or ID to run.
-        image: String,
+        /// Harness profile name from config.
+        #[arg(long)]
+        harness: String,
+        /// Config file path.
+        #[arg(long, default_value = "config.json")]
+        config: PathBuf,
         /// Test folder name under tests/.
         #[arg(long)]
         test: Option<String>,
@@ -50,15 +55,30 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
-        CommandName::RunImage { image, test } => run_image(&image, test.as_deref()),
+        CommandName::RunImage {
+            harness,
+            config,
+            test,
+        } => {
+            let config = load_config(&config)?;
+            let harness_profile = config
+                .harnesses
+                .get(&harness)
+                .ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
+            run_image(&harness, harness_profile, test.as_deref())
+        }
     }
 }
 
-fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
+fn run_image(
+    harness_name: &str,
+    harness: &HarnessProfile,
+    test: Option<&str>,
+) -> Result<(), String> {
     let selected_test = test.map(load_test_selection).transpose()?;
     let started_at = OffsetDateTime::now_utc();
     let started = Instant::now();
-    let run_id = run_id(started_at, image)?;
+    let run_id = run_id(started_at, harness_name)?;
     let run_dir = PathBuf::from("results").join(&run_id);
     fs::create_dir_all(&run_dir).map_err(|error| {
         format!(
@@ -95,7 +115,10 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
         .map(|test| prepare_temp_prompt(&run_id, &test.prompt_path))
         .transpose()?;
 
-    println!("running Docker image: {image}");
+    println!(
+        "running harness '{harness_name}' with image: {}",
+        harness.image
+    );
 
     let mut command = Command::new("docker");
     command.arg("run").arg("--rm");
@@ -128,7 +151,7 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             .arg("INITIAL_PROMPT_FILE=/prompt/PROMPT.md");
     }
     let mut child = command
-        .arg(image)
+        .arg(&harness.image)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -176,6 +199,14 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             initial_state_sha256: test.initial_state_sha256,
             prompt_sha256: test.prompt_sha256,
         }),
+        selection: RunSelection {
+            harness: harness_name.to_owned(),
+        },
+        resolved: RunResolved {
+            harness: ResolvedHarness {
+                image: harness.image.clone(),
+            },
+        },
         artifacts: RunArtifacts {
             working_dir: working_dir.map(|_| "working_dir".to_owned()),
             prompt: prompt_artifact,
@@ -199,6 +230,23 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             duration
         )),
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Config {
+    harnesses: BTreeMap<String, HarnessProfile>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct HarnessProfile {
+    image: String,
+}
+
+fn load_config(path: &Path) -> Result<Config, String> {
+    let file = File::open(path)
+        .map_err(|error| format!("failed to open config {}: {error}", path.display()))?;
+    serde_json::from_reader(file)
+        .map_err(|error| format!("failed to parse config {}: {error}", path.display()))
 }
 
 #[derive(Debug)]
@@ -476,6 +524,8 @@ struct RunResult {
     duration_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     inputs: Option<RunInputs>,
+    selection: RunSelection,
+    resolved: RunResolved,
     artifacts: RunArtifacts,
 }
 
@@ -484,6 +534,21 @@ struct RunInputs {
     test: String,
     initial_state_sha256: String,
     prompt_sha256: String,
+}
+
+#[derive(Debug, Serialize)]
+struct RunSelection {
+    harness: String,
+}
+
+#[derive(Debug, Serialize)]
+struct RunResolved {
+    harness: ResolvedHarness,
+}
+
+#[derive(Debug, Serialize)]
+struct ResolvedHarness {
+    image: String,
 }
 
 #[derive(Debug, Serialize)]
