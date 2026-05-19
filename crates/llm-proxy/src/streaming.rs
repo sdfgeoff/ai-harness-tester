@@ -152,12 +152,12 @@ pub async fn forward_sse(
 }
 
 /// Simple adapter to make mpsc::Receiver work as a futures::Stream.
-struct ReceiverStreamCompat {
-    rx: mpsc::Receiver<Result<Bytes, std::convert::Infallible>>,
+pub struct ReceiverStreamCompat {
+    rx: tokio::sync::mpsc::Receiver<Result<axum::body::Bytes, std::convert::Infallible>>,
 }
 
 impl ReceiverStreamCompat {
-    fn new(rx: mpsc::Receiver<Result<Bytes, std::convert::Infallible>>) -> Self {
+    pub fn new(rx: tokio::sync::mpsc::Receiver<Result<axum::body::Bytes, std::convert::Infallible>>) -> Self {
         Self { rx }
     }
 }

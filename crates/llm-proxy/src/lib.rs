@@ -1,3 +1,5 @@
+mod anthropic_handlers;
+mod anthropic_sse;
 mod chat_handlers;
 mod handlers;
 mod streaming;
@@ -138,6 +140,7 @@ pub async fn start_proxy(config: ProxyConfig) -> Result<ProxyHandle, String> {
         .route("/v1/models", get(handlers::models))
         .route("/v1/responses", post(handlers::responses))
         .route("/v1/chat/completions", post(chat_handlers::chat_completions))
+        .route("/v1/messages", post(anthropic_handlers::messages))
         .with_state(state);
 
     let listener = TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0))
