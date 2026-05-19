@@ -6,7 +6,8 @@ RUN npm install -g opencode-ai
 # Copy and prepare entrypoint as root
 COPY run.sh /usr/local/bin/run
 RUN chmod +x /usr/local/bin/run && \
-    mkdir -p /home/node/.config/opencode
+    mkdir -p /home/node/.config/opencode && \
+    chown -R node:node /home/node/.config
 
 # Switch to non-root user
 USER node

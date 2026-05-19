@@ -6,7 +6,8 @@ RUN npm install -g @anthropic-ai/claude-code
 # Copy and prepare entrypoint as root
 COPY run.sh /usr/local/bin/run
 RUN chmod +x /usr/local/bin/run && \
-    mkdir -p /home/node/.claude
+    mkdir -p /home/node/.claude && \
+    chown -R node:node /home/node/.claude
 
 # Switch to non-root user
 USER node

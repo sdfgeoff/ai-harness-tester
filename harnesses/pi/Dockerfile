@@ -6,7 +6,8 @@ RUN npm install -g @earendil-works/pi-coding-agent
 # Copy and prepare entrypoint as root
 COPY run.sh /usr/local/bin/run
 RUN chmod +x /usr/local/bin/run && \
-    mkdir -p /home/node/.pi/agent
+    mkdir -p /home/node/.pi/agent && \
+    chown -R node:node /home/node/.pi
 
 # Switch to non-root user
 USER node
