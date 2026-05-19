@@ -65,6 +65,12 @@ Run a Docker image directly:
 cargo run -p orchestrator-cli -- run-image harness-test/smoke:latest
 ```
 
+Run an image with a selected test:
+
+```sh
+cargo run -p orchestrator-cli -- run-image harness-test/smoke:latest --test smoke
+```
+
 At this stage the command runs the image, reports its exit status, and writes minimal run artifacts. Later tickets add working directory mounts, prompt handling, and proxy wiring.
 
 The command writes a minimal run artifact:
@@ -78,3 +84,5 @@ results/
 ```
 
 At this stage `results.json` records run ID, status, timestamps, duration, harness exit code, and the relative harness log path. Harness stdout and stderr are captured together in `logs/harness.log` and streamed live to the console with the run ID as a prefix.
+
+When `--test <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`.

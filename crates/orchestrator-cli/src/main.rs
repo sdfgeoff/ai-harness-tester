@@ -1,5 +1,6 @@
 use clap::Parser;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File},
     io::{self, BufRead, BufReader, Read, Write},
@@ -31,6 +32,9 @@ enum CommandName {
     RunImage {
         /// Docker image tag or ID to run.
         image: String,
+        /// Test folder name under tests/.
+        #[arg(long)]
+        test: Option<String>,
     },
 }
 
@@ -46,11 +50,12 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
-        CommandName::RunImage { image } => run_image(&image),
+        CommandName::RunImage { image, test } => run_image(&image, test.as_deref()),
     }
 }
 
-fn run_image(image: &str) -> Result<(), String> {
+fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
+    let selected_test = test.map(load_test_selection).transpose()?;
     let started_at = OffsetDateTime::now_utc();
     let started = Instant::now();
     let run_id = run_id(started_at, image)?;
@@ -118,6 +123,11 @@ fn run_image(image: &str) -> Result<(), String> {
         started_at: format_timestamp(started_at)?,
         finished_at: format_timestamp(finished_at)?,
         duration_ms: duration_ms(duration),
+        inputs: selected_test.map(|test| RunInputs {
+            test: test.name,
+            initial_state_sha256: test.initial_state_sha256,
+            prompt_sha256: test.prompt_sha256,
+        }),
         artifacts: RunArtifacts {
             harness_log: "logs/harness.log".to_owned(),
         },
@@ -139,6 +149,64 @@ fn run_image(image: &str) -> Result<(), String> {
             duration
         )),
     }
+}
+
+#[derive(Debug)]
+struct TestSelection {
+    name: String,
+    initial_state_sha256: String,
+    prompt_sha256: String,
+}
+
+fn load_test_selection(name: &str) -> Result<TestSelection, String> {
+    let test_dir = PathBuf::from("tests").join(name);
+    if !test_dir.is_dir() {
+        return Err(format!(
+            "test '{name}' does not exist at {}",
+            test_dir.display()
+        ));
+    }
+
+    let initial_state = test_dir.join("initial_state.zip");
+    if !initial_state.is_file() {
+        return Err(format!(
+            "test '{name}' is missing required file {}",
+            initial_state.display()
+        ));
+    }
+
+    let prompt = test_dir.join("PROMPT.md");
+    if !prompt.is_file() {
+        return Err(format!(
+            "test '{name}' is missing required file {}",
+            prompt.display()
+        ));
+    }
+
+    Ok(TestSelection {
+        name: name.to_owned(),
+        initial_state_sha256: sha256_file(&initial_state)?,
+        prompt_sha256: sha256_file(&prompt)?,
+    })
+}
+
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path)
+        .map_err(|error| format!("failed to open {} for hashing: {error}", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0; 8192];
+
+    loop {
+        let bytes_read = file
+            .read(&mut buffer)
+            .map_err(|error| format!("failed to read {} for hashing: {error}", path.display()))?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn copy_output<R>(
@@ -206,7 +274,16 @@ struct RunResult {
     started_at: String,
     finished_at: String,
     duration_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inputs: Option<RunInputs>,
     artifacts: RunArtifacts,
+}
+
+#[derive(Debug, Serialize)]
+struct RunInputs {
+    test: String,
+    initial_state_sha256: String,
+    prompt_sha256: String,
 }
 
 #[derive(Debug, Serialize)]
