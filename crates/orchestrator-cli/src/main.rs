@@ -2,7 +2,7 @@ use clap::Parser;
 use serde::Serialize;
 use std::{
     fs::{self, File},
-    io::{Read, Write},
+    io::{self, BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, ExitCode, Stdio},
     sync::{Arc, Mutex},
@@ -96,8 +96,8 @@ fn run_image(image: &str) -> Result<(), String> {
         .stderr
         .take()
         .ok_or_else(|| "failed to capture docker stderr".to_owned())?;
-    let stdout_thread = copy_to_log(stdout, Arc::clone(&harness_log));
-    let stderr_thread = copy_to_log(stderr, Arc::clone(&harness_log));
+    let stdout_thread = copy_output(stdout, Arc::clone(&harness_log), run_id.clone());
+    let stderr_thread = copy_output(stderr, Arc::clone(&harness_log), run_id.clone());
     let status = child
         .wait()
         .map_err(|error| format!("failed to wait for docker: {error}"))?;
@@ -141,27 +141,55 @@ fn run_image(image: &str) -> Result<(), String> {
     }
 }
 
-fn copy_to_log<R>(mut reader: R, log: Arc<Mutex<File>>) -> thread::JoinHandle<Result<(), String>>
+fn copy_output<R>(
+    reader: R,
+    log: Arc<Mutex<File>>,
+    run_id: String,
+) -> thread::JoinHandle<Result<(), String>>
 where
     R: Read + Send + 'static,
 {
     thread::spawn(move || {
-        let mut buffer = [0; 8192];
+        let mut reader = BufReader::new(reader);
+        let mut buffer = Vec::new();
         loop {
+            buffer.clear();
             let bytes_read = reader
-                .read(&mut buffer)
+                .read_until(b'\n', &mut buffer)
                 .map_err(|error| format!("failed to read docker output: {error}"))?;
             if bytes_read == 0 {
                 return Ok(());
             }
 
-            let mut log = log
-                .lock()
-                .map_err(|_| "harness log lock poisoned".to_owned())?;
-            log.write_all(&buffer[..bytes_read])
-                .map_err(|error| format!("failed to write harness log: {error}"))?;
+            {
+                let mut log = log
+                    .lock()
+                    .map_err(|_| "harness log lock poisoned".to_owned())?;
+                log.write_all(&buffer)
+                    .map_err(|error| format!("failed to write harness log: {error}"))?;
+            }
+
+            write_prefixed_console_line(&run_id, &buffer)?;
         }
     })
+}
+
+fn write_prefixed_console_line(run_id: &str, line: &[u8]) -> Result<(), String> {
+    let mut stdout = io::stdout().lock();
+    stdout
+        .write_all(format!("[{run_id}] ").as_bytes())
+        .and_then(|_| stdout.write_all(line))
+        .map_err(|error| format!("failed to write harness console output: {error}"))?;
+
+    if !line.ends_with(b"\n") {
+        stdout
+            .write_all(b"\n")
+            .map_err(|error| format!("failed to write harness console newline: {error}"))?;
+    }
+
+    stdout
+        .flush()
+        .map_err(|error| format!("failed to flush harness console output: {error}"))
 }
 
 fn join_log_thread(handle: thread::JoinHandle<Result<(), String>>) -> Result<(), String> {
