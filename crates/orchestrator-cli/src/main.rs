@@ -31,18 +31,18 @@ struct Cli {
 enum CommandName {
     /// Run a Docker image once and report its exit status.
     RunImage {
-        /// Harness profile name from config.
+        /// Comma-separated harness profile names from config.
         #[arg(long)]
-        harness: String,
-        /// Model profile name from config.
+        harnesses: String,
+        /// Comma-separated model profile names from config.
         #[arg(long)]
-        model: String,
+        models: String,
         /// Config file path.
         #[arg(long, default_value = "config.json")]
         config: PathBuf,
-        /// Test folder name under tests/.
+        /// Comma-separated test folder names under tests/.
         #[arg(long)]
-        test: Option<String>,
+        tests: String,
     },
 }
 
@@ -59,34 +59,70 @@ fn main() -> ExitCode {
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
         CommandName::RunImage {
-            harness,
-            model,
+            harnesses,
+            models,
             config,
-            test,
+            tests,
         } => {
             let batch_started_at = OffsetDateTime::now_utc();
             let batch_id = batch_id(batch_started_at)?;
             let config = load_config(&config)?;
+            let selected_harnesses = parse_selection_list("harnesses", &harnesses)?;
+            let selected_models = parse_selection_list("models", &models)?;
+            let selected_tests = parse_selection_list("tests", &tests)?;
+
+            for harness in &selected_harnesses {
+                if !config.harnesses.contains_key(harness) {
+                    return Err(format!("unknown harness profile '{harness}'"));
+                }
+            }
+            for model in &selected_models {
+                if !config.models.contains_key(model) {
+                    return Err(format!("unknown model profile '{model}'"));
+                }
+            }
+            for test in &selected_tests {
+                load_test_selection(test)?;
+            }
+
+            let harness = &selected_harnesses[0];
+            let model = &selected_models[0];
+            let test = &selected_tests[0];
             let harness_profile = config
                 .harnesses
-                .get(&harness)
+                .get(harness)
                 .ok_or_else(|| format!("unknown harness profile '{harness}'"))?;
             let model_profile = config
                 .models
-                .get(&model)
+                .get(model)
                 .ok_or_else(|| format!("unknown model profile '{model}'"))?;
             run_image(
                 &batch_id,
                 batch_started_at,
                 &config,
-                &harness,
+                harness,
                 harness_profile,
-                &model,
+                model,
                 model_profile,
-                test.as_deref(),
+                Some(test.as_str()),
             )
         }
     }
+}
+
+fn parse_selection_list(kind: &str, raw: &str) -> Result<Vec<String>, String> {
+    let values = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+
+    if values.is_empty() {
+        return Err(format!("--{kind} must include at least one value"));
+    }
+
+    Ok(values)
 }
 
 fn run_image(

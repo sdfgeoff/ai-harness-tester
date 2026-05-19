@@ -62,13 +62,13 @@ cargo run -p orchestrator-cli -- --help
 Run a Docker image directly:
 
 ```sh
-cargo run -p orchestrator-cli -- run-image --harness smoke --model smoke-local --config config.json
+cargo run -p orchestrator-cli -- run-image --harnesses smoke --models smoke-local --tests smoke --config config.json
 ```
 
 Run an image with a selected test:
 
 ```sh
-cargo run -p orchestrator-cli -- run-image --harness smoke --model smoke-local --test smoke --config config.json
+cargo run -p orchestrator-cli -- run-image --harnesses smoke --models smoke-local --tests smoke --config config.json
 ```
 
 At this stage the command runs the image, reports its exit status, and writes minimal run artifacts. Later tickets add working directory mounts, prompt handling, and proxy wiring.
@@ -90,7 +90,7 @@ results/
 
 At this stage `results.json` records run ID, status, timestamps, duration, harness exit code, and the relative harness log path. Harness stdout and stderr are captured together in `logs/harness.log` and streamed live to the console with the run ID as a prefix.
 
-When `--test <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`.
+When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`. The `--tests`, `--harnesses`, and `--models` flags accept comma-separated values; full matrix execution is added in a later ticket.
 
 The selected test archive is extracted into `working_dir` at the root of the run artifact. Archive entries with absolute paths, `..` path traversal, or symlinks are rejected before Docker starts.
 
