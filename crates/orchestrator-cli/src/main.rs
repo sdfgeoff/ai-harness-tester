@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File},
     io::{self, BufRead, BufReader, Read, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::{Command, ExitCode, Stdio},
     sync::{Arc, Mutex},
     thread,
@@ -82,6 +82,14 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             )
         },
     )?));
+    let working_dir = selected_test
+        .as_ref()
+        .map(|test| {
+            let working_dir = run_dir.join("working_dir");
+            extract_initial_state(&test.initial_state_path, &working_dir)?;
+            Ok::<PathBuf, String>(working_dir)
+        })
+        .transpose()?;
 
     println!("running Docker image: {image}");
 
@@ -129,6 +137,7 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
             prompt_sha256: test.prompt_sha256,
         }),
         artifacts: RunArtifacts {
+            working_dir: working_dir.map(|_| "working_dir".to_owned()),
             harness_log: "logs/harness.log".to_owned(),
         },
     };
@@ -154,6 +163,7 @@ fn run_image(image: &str, test: Option<&str>) -> Result<(), String> {
 #[derive(Debug)]
 struct TestSelection {
     name: String,
+    initial_state_path: PathBuf,
     initial_state_sha256: String,
     prompt_sha256: String,
 }
@@ -185,9 +195,108 @@ fn load_test_selection(name: &str) -> Result<TestSelection, String> {
 
     Ok(TestSelection {
         name: name.to_owned(),
+        initial_state_path: initial_state.clone(),
         initial_state_sha256: sha256_file(&initial_state)?,
         prompt_sha256: sha256_file(&prompt)?,
     })
+}
+
+fn extract_initial_state(zip_path: &Path, working_dir: &Path) -> Result<(), String> {
+    fs::create_dir_all(working_dir).map_err(|error| {
+        format!(
+            "failed to create working directory {}: {error}",
+            working_dir.display()
+        )
+    })?;
+
+    let file = File::open(zip_path)
+        .map_err(|error| format!("failed to open {}: {error}", zip_path.display()))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|error| format!("failed to read zip {}: {error}", zip_path.display()))?;
+
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|error| format!("failed to read zip entry {index}: {error}"))?;
+        let enclosed_name = entry
+            .enclosed_name()
+            .ok_or_else(|| format!("unsafe zip entry path: {}", entry.name()))?
+            .to_owned();
+
+        validate_archive_path(&enclosed_name)?;
+        reject_symlink_entry(&entry)?;
+
+        let output_path = working_dir.join(&enclosed_name);
+        if entry.is_dir() {
+            fs::create_dir_all(&output_path).map_err(|error| {
+                format!(
+                    "failed to create extracted directory {}: {error}",
+                    output_path.display()
+                )
+            })?;
+            continue;
+        }
+
+        if let Some(parent) = output_path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                format!(
+                    "failed to create extracted parent directory {}: {error}",
+                    parent.display()
+                )
+            })?;
+        }
+
+        let mut output = File::create(&output_path).map_err(|error| {
+            format!(
+                "failed to create extracted file {}: {error}",
+                output_path.display()
+            )
+        })?;
+        io::copy(&mut entry, &mut output).map_err(|error| {
+            format!(
+                "failed to extract {} to {}: {error}",
+                entry.name(),
+                output_path.display()
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+fn validate_archive_path(path: &Path) -> Result<(), String> {
+    if path.is_absolute() {
+        return Err(format!(
+            "unsafe absolute zip entry path: {}",
+            path.display()
+        ));
+    }
+
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(format!(
+            "unsafe zip entry path escapes working_dir: {}",
+            path.display()
+        ));
+    }
+
+    Ok(())
+}
+
+fn reject_symlink_entry(entry: &zip::read::ZipFile<'_>) -> Result<(), String> {
+    const UNIX_FILE_TYPE_MASK: u32 = 0o170000;
+    const UNIX_SYMLINK: u32 = 0o120000;
+
+    if entry
+        .unix_mode()
+        .is_some_and(|mode| mode & UNIX_FILE_TYPE_MASK == UNIX_SYMLINK)
+    {
+        return Err(format!("unsafe symlink zip entry: {}", entry.name()));
+    }
+
+    Ok(())
 }
 
 fn sha256_file(path: &Path) -> Result<String, String> {
@@ -288,6 +397,8 @@ struct RunInputs {
 
 #[derive(Debug, Serialize)]
 struct RunArtifacts {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    working_dir: Option<String>,
     harness_log: String,
 }
 
@@ -372,5 +483,15 @@ mod tests {
             sanitize_fragment("harness-test/smoke:latest"),
             "harness-test-smoke-latest"
         );
+    }
+
+    #[test]
+    fn rejects_parent_directory_archive_paths() {
+        assert!(validate_archive_path(Path::new("../escape")).is_err());
+    }
+
+    #[test]
+    fn accepts_relative_archive_paths() {
+        assert!(validate_archive_path(Path::new("src/message.txt")).is_ok());
     }
 }
