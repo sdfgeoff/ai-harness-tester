@@ -79,6 +79,7 @@ The command writes a minimal run artifact:
 results/
   <batch_id>/
     config.json
+    summary.json
     runs/
       <run_id>/
         logs/
@@ -122,3 +123,21 @@ Harnesses are selected by name from `config.json`:
 The selected model profile is recorded in `results.json` with non-secret resolved values only. The model API key is not written to run artifacts.
 
 Each CLI invocation creates a UTC batch directory under `results/`. Run IDs include the batch timestamp, harness, model, test, and a short suffix. A redacted copy of the launch config is written to `results/<batch_id>/config.json`.
+
+After all selected runs finish, `summary.json` is written at the batch root. It contains batch timing, the config path, and run references only:
+
+```json
+{
+  "batch_id": "20260519T020329Z",
+  "started_at": "2026-05-19T02:03:29Z",
+  "finished_at": "2026-05-19T02:03:32Z",
+  "duration_ms": 3121,
+  "config_path": "config.json",
+  "runs": [
+    {
+      "run_id": "20260519T020329Z_smoke_smoke-local_smoke_9341d8",
+      "results_path": "runs/20260519T020329Z_smoke_smoke-local_smoke_9341d8/results.json"
+    }
+  ]
+}
+```

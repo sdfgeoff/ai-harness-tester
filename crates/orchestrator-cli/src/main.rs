@@ -67,6 +67,7 @@ fn run(cli: Cli) -> Result<(), String> {
             let batch_started_at = OffsetDateTime::now_utc();
             let batch_started = Instant::now();
             let batch_id = batch_id(batch_started_at)?;
+            let config_path = config.clone();
             let config = load_config(&config)?;
             let selected_harnesses = parse_selection_list("harnesses", &harnesses)?;
             let selected_models = parse_selection_list("models", &models)?;
@@ -87,6 +88,7 @@ fn run(cli: Cli) -> Result<(), String> {
             }
 
             let mut failed_runs = 0usize;
+            let mut run_references = Vec::new();
             for test in &selected_tests {
                 for model in &selected_models {
                     for harness in &selected_harnesses {
@@ -98,7 +100,7 @@ fn run(cli: Cli) -> Result<(), String> {
                             .models
                             .get(model)
                             .ok_or_else(|| format!("unknown model profile '{model}'"))?;
-                        let status = run_image(
+                        let execution = run_image(
                             &batch_id,
                             &config,
                             harness,
@@ -107,20 +109,37 @@ fn run(cli: Cli) -> Result<(), String> {
                             model_profile,
                             Some(test.as_str()),
                         )?;
-                        if status != RunStatus::Completed {
+                        if execution.status != RunStatus::Completed {
                             failed_runs += 1;
                         }
+                        run_references.push(BatchRunReference {
+                            run_id: execution.run_id.clone(),
+                            results_path: format!("runs/{}/results.json", execution.run_id),
+                        });
                     }
                 }
             }
 
+            let finished_at = OffsetDateTime::now_utc();
+            let batch_duration = batch_started.elapsed();
+            write_batch_summary(
+                &PathBuf::from("results").join(&batch_id),
+                &BatchSummary {
+                    batch_id: batch_id.clone(),
+                    started_at: format_timestamp(batch_started_at)?,
+                    finished_at: format_timestamp(finished_at)?,
+                    duration_ms: duration_ms(batch_duration),
+                    config_path: config_path.display().to_string(),
+                    runs: run_references,
+                },
+            )?;
+
             if failed_runs > 0 {
                 Err(format!("{failed_runs} run(s) failed"))
             } else {
-                let duration = batch_started.elapsed();
                 println!(
                     "batch {batch_id} completed successfully in {:.2?}",
-                    duration
+                    batch_duration
                 );
                 Ok(())
             }
@@ -151,7 +170,7 @@ fn run_image(
     model_name: &str,
     model: &ModelProfile,
     test: Option<&str>,
-) -> Result<RunStatus, String> {
+) -> Result<RunExecution, String> {
     let selected_test = test.map(load_test_selection).transpose()?;
     let started_at = OffsetDateTime::now_utc();
     let started = Instant::now();
@@ -314,20 +333,35 @@ fn run_image(
     match status.code() {
         Some(0) => {
             println!("container completed successfully in {:.2?}", duration);
-            Ok(RunStatus::Completed)
+            Ok(RunExecution {
+                run_id,
+                status: RunStatus::Completed,
+            })
         }
         Some(code) => {
             eprintln!("container exited with status {code} after {:.2?}", duration);
-            Ok(RunStatus::Failed)
+            Ok(RunExecution {
+                run_id,
+                status: RunStatus::Failed,
+            })
         }
         None => {
             eprintln!(
                 "container terminated without an exit code after {:.2?}",
                 duration
             );
-            Ok(RunStatus::Failed)
+            Ok(RunExecution {
+                run_id,
+                status: RunStatus::Failed,
+            })
         }
     }
+}
+
+#[derive(Debug)]
+struct RunExecution {
+    run_id: String,
+    status: RunStatus,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -400,6 +434,30 @@ fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Result<(
             path.display()
         )
     })
+}
+
+#[derive(Debug, Serialize)]
+struct BatchSummary {
+    batch_id: String,
+    started_at: String,
+    finished_at: String,
+    duration_ms: u64,
+    config_path: String,
+    runs: Vec<BatchRunReference>,
+}
+
+#[derive(Debug, Serialize)]
+struct BatchRunReference {
+    run_id: String,
+    results_path: String,
+}
+
+fn write_batch_summary(batch_dir: &Path, summary: &BatchSummary) -> Result<(), String> {
+    let path = batch_dir.join("summary.json");
+    let file = File::create(&path)
+        .map_err(|error| format!("failed to create summary file {}: {error}", path.display()))?;
+    serde_json::to_writer_pretty(file, summary)
+        .map_err(|error| format!("failed to write summary file {}: {error}", path.display()))
 }
 
 #[derive(Debug)]
