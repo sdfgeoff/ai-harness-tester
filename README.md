@@ -212,3 +212,24 @@ Each run writes an append-only NDJSON log at `logs/proxy.ndjson`. Every proxied 
 - `usage` is extracted from the upstream response's `usage` object when present.
 - `error` is `null` on success, or a descriptive string on failure (e.g., connection error, auth failure).
 - `/v1/models` discovery requests are logged but excluded from generation metrics.
+
+### Metrics
+
+After each run, the orchestrator aggregates `proxy.ndjson` into the `metrics` block of `results.json`:
+
+```json
+{
+  "metrics": {
+    "request_count": 12,
+    "input_tokens": 10000,
+    "output_tokens": 3000,
+    "total_tokens": 13000,
+    "cache_read_tokens": null,
+    "cache_write_tokens": null
+  }
+}
+```
+
+- `request_count` counts all `/v1/responses` generation requests. Discovery (`/v1/models`) traffic is excluded.
+- Token fields (`input_tokens`, `output_tokens`, `total_tokens`) are summed across all generation requests. If **any** request is missing the upstream usage data for a given field, the aggregate for that field is `null`.
+- Cache fields (`cache_read_tokens`, `cache_write_tokens`) follow the same rule: summed when all requests report them, `null` otherwise.
