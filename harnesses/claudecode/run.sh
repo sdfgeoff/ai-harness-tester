@@ -25,4 +25,4 @@ echo "anthropic_api_key_present=yes"
 echo "anthropic_base_url=${ANTHROPIC_BASE_URL}"
 
 cd "${workdir}"
-claude "$(cat "${prompt_file}")"
+claude --dangerously-skip-permissions "$(cat "${prompt_file}")"
