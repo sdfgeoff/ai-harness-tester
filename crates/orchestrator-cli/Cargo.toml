@@ -16,3 +16,4 @@ serde_json.workspace = true
 sha2.workspace = true
 time.workspace = true
 zip.workspace = true
+ureq.workspace = true

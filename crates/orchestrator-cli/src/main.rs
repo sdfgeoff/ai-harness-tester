@@ -80,9 +80,10 @@ fn run(cli: Cli) -> Result<(), String> {
                 inspect_docker_image(harness, &profile.image)?;
             }
             for model in &selected_models {
-                if !config.models.contains_key(model) {
+                let Some(profile) = config.models.get(model) else {
                     return Err(format!("unknown model profile '{model}'"));
-                }
+                };
+                preflight_model(model, profile)?;
             }
             for test in &selected_tests {
                 load_test_selection(test)?;
@@ -182,6 +183,41 @@ fn inspect_docker_image(harness_name: &str, image: &str) -> Result<(), String> {
             stderr.trim()
         ))
     }
+}
+
+fn preflight_model(profile_name: &str, model: &ModelProfile) -> Result<(), String> {
+    let models_url = format!("{}/models", model.base_url.trim_end_matches('/'));
+    let response = ureq::get(&models_url)
+        .set("Authorization", &format!("Bearer {}", model.api_key))
+        .call()
+        .map_err(|error| {
+            format!(
+                "failed to fetch models for profile '{profile_name}' from {models_url}: {error}"
+            )
+        })?;
+    let body = response.into_json::<serde_json::Value>().map_err(|error| {
+        format!("failed to parse models response for profile '{profile_name}' from {models_url}: {error}")
+    })?;
+
+    if model_response_contains(&body, &model.model_name) {
+        Ok(())
+    } else {
+        Err(format!(
+            "model profile '{profile_name}' configured model '{}' was not found at {models_url}",
+            model.model_name
+        ))
+    }
+}
+
+fn model_response_contains(response: &serde_json::Value, model_name: &str) -> bool {
+    response
+        .get("data")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|models| {
+            models.iter().any(|model| {
+                model.get("id").and_then(serde_json::Value::as_str) == Some(model_name)
+            })
+        })
 }
 
 fn run_image(
@@ -898,5 +934,19 @@ mod tests {
     #[test]
     fn accepts_relative_archive_paths() {
         assert!(validate_archive_path(Path::new("src/message.txt")).is_ok());
+    }
+
+    #[test]
+    fn finds_model_in_openai_models_response() {
+        let response = serde_json::json!({
+            "object": "list",
+            "data": [
+                {"id": "other-model"},
+                {"id": "smoke-local"}
+            ]
+        });
+
+        assert!(model_response_contains(&response, "smoke-local"));
+        assert!(!model_response_contains(&response, "missing"));
     }
 }
