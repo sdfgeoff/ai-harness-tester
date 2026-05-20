@@ -18,3 +18,7 @@
 ## Artifact Analysis
 
 - Generate a diff between the initial extracted state and final `working_dir`.
+
+## Evaluation
+
+- Add an explicit LLM-as-judge evaluator mode with declared network and credential wiring instead of loosening the default evaluator contract.
