@@ -1,0 +1,614 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4-0 Frameset//EN" "http://www.w3.org/TR/PR-html40/frameset.dtd">
+<!-- saved from url=(0058)https://www.chessvariants.com/boardrules.dir/geodesic.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+
+
+<style type="text/css">@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/cyrillic-ext/opsz/normal.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/cyrillic/opsz/normal.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/latin-ext/opsz/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/greek/opsz/normal.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/vietnamese/opsz/normal.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/greek-ext/opsz/normal.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Literata;font-style:normal;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/latin/opsz/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/cyrillic/opsz/italic.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/greek-ext/opsz/italic.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/vietnamese/opsz/italic.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/latin-ext/opsz/italic.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/latin/opsz/italic.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/greek/opsz/italic.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Literata;font-style:italic;font-weight:200 900;src:url(/cf-fonts/v/literata/5.0.18/cyrillic-ext/opsz/italic.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/cyrillic/wght/normal.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/greek-ext/wght/normal.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/devanagari/wght/normal.woff2);unicode-range:U+0900-097F,U+1CD0-1CF9,U+200C-200D,U+20A8,U+20B9,U+25CC,U+A830-A839,U+A8E0-A8FF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/cyrillic-ext/wght/normal.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/latin/wght/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/greek/wght/normal.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/vietnamese/wght/normal.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Noto Sans;font-style:normal;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/latin-ext/wght/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/latin-ext/wght/italic.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/cyrillic/wght/italic.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/greek-ext/wght/italic.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/cyrillic-ext/wght/italic.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/greek/wght/italic.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/latin/wght/italic.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/vietnamese/wght/italic.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Noto Sans;font-style:italic;font-weight:400 800;src:url(/cf-fonts/v/noto-sans/5.0.18/devanagari/wght/italic.woff2);unicode-range:U+0900-097F,U+1CD0-1CF9,U+200C-200D,U+20A8,U+20B9,U+25CC,U+A830-A839,U+A8E0-A8FF;font-display:swap;}@font-face {font-family:Courier Prime;font-style:normal;font-weight:400;src:url(/cf-fonts/s/courier-prime/5.0.18/latin-ext/400/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Courier Prime;font-style:normal;font-weight:400;src:url(/cf-fonts/s/courier-prime/5.0.18/latin/400/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Courier Prime;font-style:normal;font-weight:700;src:url(/cf-fonts/s/courier-prime/5.0.18/latin-ext/700/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Courier Prime;font-style:normal;font-weight:700;src:url(/cf-fonts/s/courier-prime/5.0.18/latin/700/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Courier Prime;font-style:italic;font-weight:400;src:url(/cf-fonts/s/courier-prime/5.0.18/latin/400/italic.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Courier Prime;font-style:italic;font-weight:400;src:url(/cf-fonts/s/courier-prime/5.0.18/latin-ext/400/italic.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Courier Prime;font-style:italic;font-weight:700;src:url(/cf-fonts/s/courier-prime/5.0.18/latin/700/italic.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Courier Prime;font-style:italic;font-weight:700;src:url(/cf-fonts/s/courier-prime/5.0.18/latin-ext/700/italic.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}</style>
+<style>
+:root {
+	--sans-serif: Noto Sans, Andika, Amazon Ember, Go, Trebuchet MS, Segoe UI, Tahoma, system-ui, -apple-system, sans-serif;
+	--serif: Literata, Bookerly, Georgia Pro, Charis SIL, Charter, Cambria, Noto Serif, Iowan Old Style, Cochin, Georgia, Caecilia, serif;
+	--mono: Courier Prime, Go Mono, Hack, Cascadia Code, Consolas, Noto Sans Mono, Noto Mono, Liberation Mono, Menlo, KindleBlackBoxC, monospace;
+	--bodyfont: Literata, Bookerly, Georgia Pro, Charis SIL, Charter, Cambria, Noto Serif, Iowan Old Style, Cochin, Georgia, Caecilia, serif;
+	--headfont: Noto Sans, Andika, Amazon Ember, Go, Trebuchet MS, Segoe UI, Tahoma, system-ui, -apple-system, sans-serif;
+}
+</style>
+<script type="text/javascript">window._epn = {campaign: 5338971165};</script>
+<script src="./Geodesic Chess_files/epn-smart-tools.js" type="text/javascript"></script>
+<title>Geodesic Chess</title>
+<meta name="Author" content="AUTHOR NAME">
+<meta name="keywords" content="chess, variation, variant, variants">
+<link href="./Geodesic Chess_files/global.css" rel="stylesheet" type="text/css">
+</head>
+<body bgcolor="#fffff0" vlink="#ff0000" class="system-theme"> 
+
+<script src="./Geodesic Chess_files/showads.js" type="text/javascript"></script>
+<a name="topofheader"></a>
+<style type="text/css">
+.idiagram {display: none;}
+.menustyle {font-family: var(--headerfont), var(--sans-serif), sans-serif; font-weight: bold; background-color: var(--nav-bgcolor); border: solid var(--nav-border-color) medium; display: inline-block;}
+#menubar HR {color: var(--nav-highlight-color);}
+BODY>HEADER>NAV {position: relative; left: 0px; top: 0px;}
+#tribar {display: none;}
+
+#menubar {
+	color: var(--nav-fgcolor);
+	background: var(--nav-bgcolor); 
+	border: solid 2px var(--nav-border-color); 
+	font-family: var(--headerfont), var(--sans-serif), sans-serif; 
+	font-weight: bold; 
+	font-size: 1.1rem; 
+	height: 1.7em; 
+	left: 0px; 
+	margin: 1ex 0px 1ex 0px; 
+	padding: 0px; 
+	position: absolute; 
+	top: 0px;
+	width: 100%; 
+	z-index:11; 
+}
+
+#menubar LI {line-height: 1.5em; display: block; z-index:11; background-color: var(--nav-bgcolor); position: relative; list-style-type: none;}
+#menubar>LI {float:left; margin: 0 1ex;}
+@media screen and (max-width:960px) {
+	#menubar {font-size: 1rem; height: 1.5em;}
+	#menubar>LI {margin: 0 .5ex;}
+}
+#menubar>LI>HEADER::after {content: '\00a0\25BC'; font-size: 75%; vertical-align: top; color: #777777;}
+#menubar MENU LI>HEADER::before {content: "\25B6\00a0"; font-size: 75%; vertical-align: top; color: #777777;}
+
+#menubar MENU {margin: 0px; padding: 0px; padding-bottom: .5em; background: var(--nav-bgcolor); display: none; width: 200px; border: solid 2px var(--nav-border-color); min-width: 16em; position: relative; left: 0px; top: 0px;}
+#menubar MENU MENU {position: absolute; left: 100%;}
+#menubar LI:hover>MENU {display:inline-block;}
+#menubar LI:active>MENU {display:inline-block;}
+#menubar LI:focus>MENU {display:inline-block;}
+
+#menubar LI:hover, #menubar A:hover {background-color: var(--nav-highlight-color);}
+#menubar LI:focus, #menubar A:focus {background-color: var(--nav-highlight-color);}
+
+#menubar LI A {display: block; width: 100%; z-index: 11; text-decoration: none; color: var(--nav-fgcolor); text-align: left; white-space:nowrap;}
+#menubar LI A:link, #menubar LI A:visited {color: var(--nav-fgcolor);}
+
+#menubar LI>IMG {float: left; padding-right: 1ex; vertical-align: bottom;}
+#menubar LI A IMG {position: absolute; top: 0px; bottom 0px; left: 0px; right: 0px; width: 100%; width: 100%; height: 100%; border: 0px;}
+#menubar LI IMG {padding: 3px;}
+
+#menubar LI FORM {border: 0px; margin: 0px; padding: 0px; display: inline;}
+#menubar LI FORM INPUT {margin: 0px; padding: 0px; font-size: 1.25rem; display: inline;}
+
+#menubar LI MENU, MENU LI MENU, MENU>LI MENU {padding-bottom: .5em;}
+#menubar>LI {float:left;}
+#menubar LI MENU {position: relative; left: 0px; top: 0px;}
+#menubar LI MENU LI MENU {position: absolute; left: 100%; top: 0px;}
+
+#menubar>FORM {float: right;}
+
+#colorscheme {
+	appearance: none; 
+	overflow: hidden; 
+	height: 2em; 
+	border: 0; 
+	background-color: transparent; 
+	display: inline-block;
+}
+#colorscheme option {
+	display: table-cell; 
+	font-size: 1.5em; 
+	vertical-align: top; 
+	padding: 0;
+}
+.leftcol, .rightcol {display: none;}
+
+/*
+** CSS for Kindle browser
+** Everything normally appears smaller in the Kindle browser,
+** because its 300ppi screen packs 300 pixels into an inch.
+** To detect this, the @media query checks for a mobile device
+** with a screen width less than 7 inches of at least 1060px.
+** This query is based on the width in pixels on the Paperwhite 4, 
+** which is 1072, and the width in inches on the 10.2 inch Scribe, 
+** which is just over 6 inches. When a device matches this query,
+** it doubles the size of each page so that it's closer to what 
+** normal size looks like on other devices.
+*/
+@media (min-width: 1060px) and (max-width: 7in) {
+	HTML {font-size: 6pt; zoom: 2;}
+}
+</style>
+<header>
+<nav>
+<menu id="menubar">
+<!--
+	<LI STYLE="width: 4.15em;">Home
+	<MENU STYLE="width: 14em;">
+		<LI><IMG SRC="/index/home.gif" WIDTH=16 HEIGHT=16> <A HREF="/">chessvariants.com</A></LI>
+		<LI><IMG SRC="/index/script.gif" WIDTH=16 HEIGHT=16> <A HREF="/index/whatsnew.php">What's New?</A></LI>
+	</MENU></LI>
+-->
+	<li style="width: 3em;" role="menuitem" id="menubar-0" tabindex="0" aria-haspopup="true"><header>Play</header>
+<menu style="width: 13em; display: none;" id="menubar-0-submenu" role="menu" hidden="">		<li role="menuitem" id="menubar-1" tabindex="-1"><img src="./Geodesic Chess_files/home.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/pbm/">Game Courier</a></li>
+		<li role="menuitem" id="menubar-2" tabindex="-1"><img src="./Geodesic Chess_files/index.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/games.html">Games to Play</a></li>
+		<li role="menuitem" id="menubar-3" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/pbm/logs.php">Game Logs</a></li>
+		
+<li role="menuitem" id="menubar-4" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/pbm/logs.php?age=0&amp;stat=open">Invitations to Play</a></li>
+		<li role="menuitem" id="menubar-5" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/pbm/logs.php?age=0&amp;stat=open">Invitations to Play</a></li>	
+		<li role="seperator" id="menubar-6" tabindex="-1"><hr></li>
+		<li role="menuitem" id="menubar-7" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Program&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Computer+Programs">Computer Programs</a></li>
+		<li role="menuitem" id="menubar-8" tabindex="-1"><img src="./Geodesic Chess_files/zillions.gif" width="16" height="16"> <a href="https://www.chessvariants.com/programs.dir/zillions/">Zillions of Games</a></li>
+		<li role="menuitem" id="menubar-9" tabindex="-1"><img src="./Geodesic Chess_files/program.gif" width="16" height="16"> <a href="https://www.chessvariants.com/link/ChessVUniversalC">ChessV</a></li>
+		<li role="menuitem" id="menubar-10" tabindex="-1"><img src="./Geodesic Chess_files/java.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Java&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Java+Applets">Java Applets</a></li>
+	</menu></li>
+	
+	<li style="width: 4.22em;" role="menuitem" id="menubar-11" tabindex="0" aria-haspopup="true"><header>Games</header>
+	<menu style="width: 15em; display: none;" id="menubar-11-submenu" role="menu" hidden="">
+		<li role="menuitem" id="menubar-12" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/favorites.php">Our Favorites</a></li>
+		<li role="menuitem" id="menubar-13" tabindex="-1"><img src="./Geodesic Chess_files/pbm.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/pbm/listgames.php?max=50">Game Courier's Top 50</a></li>
+		<li role="menuitem" id="menubar-14" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/rindex.html">Recognized Variants</a></li>
+		<li role="seperator" id="menubar-15" tabindex="-1"><hr></li>
+		<li role="menuitem" id="menubar-16" tabindex="-1"><img src="./Geodesic Chess_files/game.gif" width="16" height="16"> <a href="https://www.chessvariants.com/d.chess/chess.html">The Rules of Chess</a></li>
+		<li role="menuitem" id="menubar-17" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=chess&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=FIDE+Chess">Chess pages</a></li>
+		<li role="menuitem" id="menubar-18" tabindex="-1" aria-haspopup="true"><header>Playable with a Chess set</header>
+		<menu id="menubar-18-submenu" role="menu" hidden="" style="display: none;">
+			<li role="menuitem" id="menubar-19" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-Capturing&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Capturing+In+A+Different+Way">Capturing in a Different Way</a></li>
+			<li role="menuitem" id="menubar-20" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-Setups&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Different+Opening+Setups">Different Opening Setups</a></li>
+			<li role="menuitem" id="menubar-21" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-BoardRules&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Rules+About+The+Board">Different Board Rules</a></li>
+			<li role="menuitem" id="menubar-22" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-Moving&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Differently+Moving+Pieces">Differently Moving Pieces</a></li>
+			<li role="menuitem" id="menubar-23" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-MovingOpponent&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Moving+Your+Opponents+Pieces">Moving Opponent's Pieces</a></li>
+			<li role="menuitem" id="menubar-24" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-MultiMove&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Multiple+Move+Variants">Multi-Move Variants</a></li>
+			<li role="menuitem" id="menubar-25" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-Winning&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Winning+In+A+Different+Way">Winning in a Different Way</a></li>
+			<li role="menuitem" id="menubar-26" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UsualEquipment%2CDiff-Other&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Other+Variants">Other</a></li>
+			<li role="menuitem" id="menubar-27" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/other.dir/modest.html">Modest Variants</a></li>
+		</menu></li>
+		
+		<li role="menuitem" id="menubar-28" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Historical&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Historic+Chess+Variants">Historic Antecedents</a></li>
+		<li role="menuitem" id="menubar-29" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Oriental&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Oriental+Chess+Variants">Oriental Variants</a></li>
+		<li role="menuitem" id="menubar-30" tabindex="-1" aria-haspopup="true"><header>Different Boards</header>
+		<menu id="menubar-30-submenu" role="menu" hidden="" style="display: none;">
+			<li role="menuitem" id="menubar-31" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Small&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Small+Chess+Variants">Small</a></li>
+			<li role="menuitem" id="menubar-32" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Large&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Large+Chess+Variants">Large</a></li>
+			<li role="menuitem" id="menubar-33" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=3d&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Three+Dimensional">Three-Dimensional</a></li>
+			<li role="menuitem" id="menubar-34" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Hexagonal&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Hexagonal+Chess+Variants">Hexagonal</a></li>
+			<li role="menuitem" id="menubar-35" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Round&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Round+Boards">Round Boards</a></li>
+			<li role="menuitem" id="menubar-36" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Shape&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Unusually+Shaped+Boards">Other</a></li>
+		</menu></li>
+		<li role="menuitem" id="menubar-37" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Multiplayer&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Multi-player+Variants">Multi-Player</a></li>
+		<li role="menuitem" id="menubar-38" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Commercial&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Commercial">Commercial Games</a></li>
+		<li role="menuitem" id="menubar-39" tabindex="-1" aria-haspopup="true"><header>Other Variants</header>
+		<menu id="menubar-39-submenu" role="menu" hidden="" style="display: none;">
+			<li role="menuitem" id="menubar-40" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Cards&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Chess+With+Cards">Chess with Cards</a></li>
+			<li role="menuitem" id="menubar-41" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Dice&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Chess+With+Dice">Chess with Dice</a></li>
+			<li role="menuitem" id="menubar-42" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Crossover&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Crossovers">Crossovers</a></li>
+			<li role="menuitem" id="menubar-43" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=IncompleteInfo&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Chess+With+Incomplete+Information">Incomplete Information</a></li>
+			<li role="menuitem" id="menubar-44" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=UnequalArmies&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Unequal+Armies">Unequal Armies</a></li>
+			<li role="menuitem" id="menubar-45" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Wargame&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Wargames+And+Hierarchical+Games">Wargames</a></li>
+			<li role="menuitem" id="menubar-46" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;category=Other&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Other+Variants">Miscellaneous Other</a></li>
+		</menu></li>
+		<li role="menuitem" id="menubar-47" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/ithemed.html">Themed Variants</a></li>
+		<li role="menuitem" id="menubar-48" tabindex="-1"><img src="./Geodesic Chess_files/game.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/randgame.php?uniqid=6a0d316ce6a25">Random Game Page</a></li>	</menu></li>
+	<li style="width: 4.58em;" role="menuitem" id="menubar-49" tabindex="0" aria-haspopup="true"><header>Explore</header>
+	<menu style="width: fit-content; display: none;" id="menubar-49-submenu" role="menu" hidden="">
+		<li role="menuitem" id="menubar-50" tabindex="-1"><search>
+		<span style="font-family: &#39;Google Sans&#39;, &#39;Product Sans&#39;, var(--sans-serif), sans-serif"><font color="#4285F4">G</font><font color="#EA4335">o</font><font color="#FBBC05">o</font><font color="#4285F4">g</font><font color="34A853">l</font><font color="EA4335">e</font></span> Custom Search
+		<div class="cse-branding-right" style="background-color:var(--bgcolor);color:var(--fgcolor); margin: 0; padding: 0;">
+		  <div class="cse-branding-form">
+			<form action="https://www.google.com/" id="cse-search-box" target="_blank">
+			  <div>
+				<input type="search" name="q" tabindex="0" size="27" placeholder="Search Site">
+				<input type="hidden" name="cx" value="partner-pub-2787503004438672:4328536141">
+				<input type="hidden" name="ie" value="UTF-8">
+				<input type="submit" name="sa" value="Search">
+			  </div>
+			</form>
+		  </div>
+		</div>
+		</search>
+		</li>
+		<li role="seperator" id="menubar-51" tabindex="-1"><hr></li>
+		<li role="menuitem" id="menubar-52" tabindex="-1"><img src="./Geodesic Chess_files/search.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/likethis.php?itemid=GeodesicChess">Pages Like This</a></li>		<li role="menuitem" id="menubar-53" tabindex="-1"><img src="./Geodesic Chess_files/search.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/msdisplay.php?itemid=MSchess-variants-query">Query Database</a></li>
+		<li role="menuitem" id="menubar-54" tabindex="-1"><img src="./Geodesic Chess_files/index.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/whatsnew.php">What's New</a></li>
+		<li role="menuitem" id="menubar-55" tabindex="-1"><img src="./Geodesic Chess_files/index.gif" width="16" height="16"> <a href="https://www.chessvariants.com/alphabet.html">Alphabetical Index</a></li>
+		<li role="menuitem" id="menubar-56" tabindex="-1"><img src="./Geodesic Chess_files/index.gif"> <a href="https://www.chessvariants.com/Gindex.html">Topic Index</a></li>
+		<li role="menuitem" id="menubar-57" tabindex="-1"><img src="./Geodesic Chess_files/script.gif"> <a href="https://www.chessvariants.com/index/tags.php">Tags</a></li>
+		<li role="menuitem" id="menubar-58" tabindex="-1"><img src="./Geodesic Chess_files/comments.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/listcomments.php?order=DESC">Comments</a></li>
+		<li role="menuitem" id="menubar-59" tabindex="-1"><img src="./Geodesic Chess_files/craft.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Craft&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;usethisheading=Chess%2520Variant%2520Craft%2520Projects">Crafts</a></li>
+		<li role="menuitem" id="menubar-60" tabindex="-1"><img src="./Geodesic Chess_files/piececlopedia.gif" width="16" height="16"> <a href="https://www.chessvariants.com/piececlopedia.dir/">Piececlopedia</a></li>
+		<li role="menuitem" id="menubar-61" tabindex="-1"><img src="./Geodesic Chess_files/piece.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Piece">Piece Articles</a></li>
+		<li role="menuitem" id="menubar-62" tabindex="-1"><img src="./Geodesic Chess_files/book.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Publication">Publications</a></li>
+	</menu></li>
+
+	<li style="width: 3.42em;" role="menuitem" id="menubar-63" tabindex="0" aria-haspopup="true"><header>Shop</header>
+	<menu style="width: 14em; display: none;" id="menubar-63-submenu" role="menu" hidden="">	<li role="menuitem" id="menubar-64" tabindex="-1"><img src="./Geodesic Chess_files/shopitem.gif" width="16" height="16"> <a target="_blank" href="https://www.chessvariants.com/d.photo/hos-cv-kits/">Figurine Pieces</a></li>
+	<li role="menuitem" id="menubar-65" tabindex="-1"><img src="./Geodesic Chess_files/shopitem.gif" width="16" height="16"> <a target="_blank" rel="nofollow" href="https://www.gopjn.com/t/8-11811-298050-165466">House of Staunton</a></li>
+	<li role="menuitem" id="menubar-66" tabindex="-1"><img src="./Geodesic Chess_files/shopitem.gif" width="16" height="16"> <a target="_blank" rel="nofollow" href="https://www.pntrac.com/t/8-11899-298050-169516">US Chess Sales</a></li>
+	<li role="menuitem" id="menubar-67" tabindex="-1"><img src="./Geodesic Chess_files/shopitem.gif" width="16" height="16"> <a target="_blank" rel="nofollow" href="https://www.pntrs.com/t/8-12214-298050-183325">Wholesale Chess</a></li>
+	<li role="seperator" id="menubar-68" tabindex="-1"><hr></li>
+	<li role="menuitem" id="menubar-69" tabindex="-1"><img src="./Geodesic Chess_files/US.png"> <a target="_blank" href="http://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_ff3=1&amp;pub=5575156131&amp;toolid=10001&amp;campid=5337820025&amp;customid=&amp;ipn=psmain&amp;icep_vectorid=229466&amp;kwid=902099&amp;mtid=824&amp;kw=lg">ebay.com</a></li>		<li role="seperator" id="menubar-70" tabindex="-1"><hr></li>
+		<li role="menuitem" id="menubar-71" tabindex="-1"><img src="./Geodesic Chess_files/US.png" width="24" height="16"> <a target="_blank" href="https://www.amazon.com/ref=as_li_ss_tl?_encoding=UTF8&amp;camp=1789&amp;creative=390957&amp;linkCode=ur2&amp;tag=chessvariants-20&amp;linkId=2V7I3MB5NIPBYE5K">Amazon.com</a></li>
+		<li role="menuitem" id="menubar-72" tabindex="-1"><img src="./Geodesic Chess_files/US.png" width="24" height="16"> <a target="_blank" href="https://www.amazon.com/gp/goldbox/ref=as_li_ss_tl?ie=UTF8&amp;camp=1789&amp;creative=390957&amp;linkCode=ur2&amp;tag=chessvariants-20&amp;linkId=N6Y475OL6XIE74I3">Today's Deals on Amazon</a></li>
+		<li role="menuitem" id="menubar-73" tabindex="-1"><img src="./Geodesic Chess_files/US.png" width="24" height="16"> <a href="https://www.chessvariants.com/shop.dir/chessvariants.php">Shop Chess Variants</a></li>
+		<li role="menuitem" id="menubar-74" tabindex="-1"><img src="./Geodesic Chess_files/US.png" width="24" height="16"> <a href="https://www.chessvariants.com/shop.dir/chessbooks.php">Shop Chess Books</a></li>
+		<li role="menuitem" id="menubar-75" tabindex="-1"><img src="./Geodesic Chess_files/US.png" width="24" height="16"> <a href="https://www.chessvariants.com/shop.dir/boardgames.php">Shop Board Games</a></li>
+		<li role="menuitem" id="menubar-76" tabindex="-1"><img src="./Geodesic Chess_files/US.png" width="24" height="16"> <a href="https://www.chessvariants.com/shop.dir/games.php">Shop Games</a></li>
+	</menu></li>
+	<li style="width: 3.21em;" role="menuitem" id="menubar-77" tabindex="0" aria-haspopup="true"><header>Web</header>
+	<menu style="width: 18.25em; display: none;" id="menubar-77-submenu" role="menu" hidden="">		<li role="menuitem" id="menubar-78" tabindex="-1"><img src="./Geodesic Chess_files/icon-facebook-16x16.png" width="16" height="16"> <a href="https://www.facebook.com/ChessVariants/">Chess Variants on Facebook</a></li>
+		<li role="menuitem" id="menubar-79" tabindex="-1"><img src="./Geodesic Chess_files/reddit.gif" width="16" height="16"> <a href="http://www.reddit.com/r/chessvariants/">Chessvariants Subreddit</a></li>
+		<li role="menuitem" id="menubar-80" tabindex="-1"><img src="./Geodesic Chess_files/wikidot.gif" width="16" height="16"> <a href="http://chessvariants.wikidot.com/">Chess Variants Wiki</a></li>
+		<li role="menuitem" id="menubar-81" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/mainquery.php?type=Any&amp;orderby=LinkText&amp;displayauthor=1&amp;displayinventor=1&amp;extlinksonly=1">External Links</a></li>
+	</menu></li>
+	<li style="width: 3.4em;" role="menuitem" id="menubar-82" tabindex="0" aria-haspopup="true"><header>Tools</header>
+	<menu style="width: 23em; display: none;" id="menubar-82-submenu" role="menu" hidden="">
+		<li role="menuitem" id="menubar-83" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/play/pbm/diagram-designer.php">Diagram Designer</a></li>
+		<li role="menuitem" id="menubar-84" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" widt16="" height="16"> <a href="https://www.chessvariants.com/page/MSbetza-notation-extended">Betza notation (extended)</a></li>
+		<li role="menuitem" id="menubar-85" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/page/MScheckmating-applet">Checkmating Applet</a></li>
+		<li role="menuitem" id="menubar-86" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/page/MSgame-code-generation">A Wizard for GAME-Code Generation</a></li>
+		<li role="menuitem" id="menubar-87" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/page/MSinteractive-diagrams">Interactive Diagrams</a></li>
+		<li role="menuitem" id="menubar-88" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/page/MSdiagram-editor-with-scalable-graphics">Diagram Editor with Scalable Graphics</a></li>
+		<li role="menuitem" id="menubar-89" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/page/MSplay-test-applet-for-chess-variants">Play-test applet for chess variants</a></li>
+		<li role="menuitem" id="menubar-90" tabindex="-1"><img src="./Geodesic Chess_files/script.gif" width="16" height="16"> <a href="https://www.chessvariants.com/index/fontsettings.php">Font Settings</a></li>
+	</menu></li>
+	<li style="width: 3.19em;" role="menuitem" id="menubar-91" tabindex="0" aria-haspopup="true"><header>Help</header>
+	<menu style="width: 20em; display: none;" id="menubar-91-submenu" role="menu" hidden="">
+		<li role="menuitem" id="menubar-92" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/who.html">Who to Contact</a></li>
+		<li role="menuitem" id="menubar-93" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/what.html">What is a Chess Variant?</a></li>
+		<li role="menuitem" id="menubar-94" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/history.html">The History of Chess Variants</a></li>
+		<li role="menuitem" id="menubar-95" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/where.html">Where can I play Chess Variants?</a></li>
+		<li role="menuitem" id="menubar-96" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/why.html">Why should I play Chess Variants?</a></li>
+		<li role="menuitem" id="menubar-97" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/which.html">Which are the best Chess Variants?</a></li>
+		<li role="menuitem" id="menubar-98" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/how.html">How do I design or post a game?</a></li>
+		<li role="menuitem" id="menubar-99" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/help.html">How You Can Help</a></li>
+		<li role="menuitem" id="menubar-100" tabindex="-1"><img src="./Geodesic Chess_files/reference.gif" width="16" height="16"> <a href="https://www.chessvariants.com/misc.dir/html.html">HTML Dos and Don'ts</a></li>
+		<li role="menuitem" id="menubar-101" tabindex="-1"><form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+<input type="hidden" name="cmd" value="_s-xclick">
+<input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----
+">
+<input type="submit" value="Donate with Paypal" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+<img alt="" border="0" src="./Geodesic Chess_files/pixel.gif" width="1" height="1">
+</form>
+	</li>
+	</menu></li>
+<form action="https://www.chessvariants.com/login/login.php" method="POST" style="margin-top: 3pt; margin-left: 1em;"><input type="SUBMIT" name="login" value="Sign In/Join"></form>
+<form action="https://www.chessvariants.com/login/setcolorscheme.php" method="POST"><select size="5" id="colorscheme" name="colorscheme" onchange="if (!window.__cfRLUnblockHandlers) return false; changeTheme();">
+<option title="Use a minimalist light scheme for printing." value="print">🖨️</option><option title="Force use of the light color scheme." value="light">🌞</option><option title="Force use of the dark color scheme." value="dark">🌙</option><option title="Use a darker high contrast color scheme." value="darker">🌑</option><option title="Accept your browser&#39;s default color scheme." value="system" selected="">💻</option></select>
+<input type="submit" title="Save the current color scheme to a cookie." name="submit" value="Save">
+</form>
+<script type="text/javascript">
+function changeTheme() {
+	oldtheme = document.body.classList;
+	newtheme = document.getElementById("colorscheme").value + "-theme";
+	if (oldtheme == "")
+		document.body.classList.add(newtheme);
+	else if (oldtheme != newtheme)
+		document.body.classList.replace(oldtheme,newtheme);
+}
+changeTheme();
+</script>
+</menu>
+</nav>
+<br clear="ALL">
+<br clear="ALL">
+<div style="display: flex; margin-top: 1rem; justify-content: space-between; width: 100vw;">
+<div>
+<style>
+:root {
+	--light-logo: url('/graphics.dir/cvp-logo-light-3.png');
+	--dark-logo: url('/graphics.dir/cvp-logo-dark-2.png');
+	--darker-logo: url('/graphics.dir/cvp-logo-darker-3.png');
+	--print-logo: url('/graphics.dir/cvp-logo-print-1.png');
+}
+@media (prefers-color-scheme: dark) {
+														
+	#logo {content: var(--dark-logo) !important;}
+  
+}
+.light-theme #logo {content: var(--light-logo) !important;}
+.print-theme #logo {content: var(--print-logo) !important;}
+.dark-theme #logo {content: var(--dark-logo) !important;}
+.darker-theme #logo {content: var(--darker-logo) !important;}
+:root:has(#colorscheme [value="print"]:checked) {
+	#logo {content: var(--print-logo) !important;}
+}
+:root:has(#colorscheme [value="light"]:checked) {
+	#logo {content: var(--light-logo) !important;}
+}
+:root:has(#colorscheme [value="dark"]:checked) {
+	#logo {content: var(--dark-logo) !important;}
+}
+:root:has(#colorscheme [value="darker"]:checked) {
+	#logo {content: var(--darker-logo) !important;}
+}
+</style>
+<a href="https://www.chessvariants.com/"><img id="logo" style="content: url(&#39;/graphics.dir/cvp-logo-light-2.png&#39;)" alt="The Chess Variant Pages" title="Click to go to the Homepage" align="LEFT"></a>
+</div>
+<div><div style="text-align: center !important; margin-right: auto; margin-left: auto; max-width: 90%;"><div class="alignleft">
+     <script type="text/javascript">
+       	amzn_assoc_ad_type = "banner";
+	amzn_assoc_marketplace = "amazon";
+	amzn_assoc_region = "US";
+	amzn_assoc_placement = "assoc_banner_placement_default";
+	amzn_assoc_campaigns = "software";
+	amzn_assoc_banner_type = "category";
+	amzn_assoc_p = "48";
+	amzn_assoc_isresponsive = "false";
+	amzn_assoc_banner_id = "0E8NERW3F9QFPDGBRT02";
+	amzn_assoc_width = "728";
+	amzn_assoc_height = "90";
+	amzn_assoc_tracking_id = "chessvariants-20";
+	amzn_assoc_linkid = "669c6199ac54e92ceea62736f5329840";
+     </script>
+     <script src="https://z-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&amp;Operation=GetScript&amp;ID=OneJS&amp;WS=1" type="text/javascript"></script>
+    </div></div>
+</div><div></div></div> <!-- end header --><script async="" type="text/javascript" language="javascript" src="./Geodesic Chess_files/menucontrol-main.js"></script>
+</header>
+<br clear="ALL"><br>
+<aside class="leftcol" style="position: sticky; top: 0px;">
+<ins class="epn-placement" data-config-id="60f0b91935f0dd85627458e5"></ins></aside>
+<aside class="rightcol" style="position: sticky; top: 0px;">
+<a href="https://www.gopjn.com/t/4-467801-298050-165466" rel="sponsored"><img src="./Geodesic Chess_files/4-467801-298050-165466" border="0" width="120" height="600" title="The House of Staunton" alt="The House of Staunton"></a></aside>
+<main>
+<article id="maincontent">
+
+
+<h1 align="center">Geodesic Chess</h1>
+
+<h3 align="center">By Jack Cheiky</h3>
+
+<p></p><table width="20%" cellpadding="8" align="right">
+<tbody><tr><td bgcolor="#eeeee0"><div class="menu">
+<a href="https://www.chessvariants.com/boardrules.dir/geodesic.html#intro">Introduction</a>
+<br><a href="https://www.chessvariants.com/boardrules.dir/geodesic.html#board">Board</a>
+<br><a href="https://www.chessvariants.com/boardrules.dir/geodesic.html#array">Setup</a>
+<br><a href="https://www.chessvariants.com/boardrules.dir/geodesic.html#pieces">Pieces</a>
+<br><a href="https://www.chessvariants.com/boardrules.dir/geodesic.html#rules">Rules</a>
+<br>
+</div>
+</td></tr>
+</tbody></table>
+
+&nbsp;
+<a name="intro"> </a>
+<h2>Introduction</h2>
+
+<p><font face="Times New Roman">Geodesic Chess is played on a GeoBoard: a
+spherical grid of hexagons and pentagons. GeoBoards can map a sphere in as few
+as 32 spaces or in hundreds, thousands, and even millions of spaces. Most games
+played on a grid or a map can be adapted to the GeoBoard. GeoChess Basic is
+played between two players on a #9 GeoBoard consisting of 272 spaces.&nbsp;</font></p>
+
+<p><font face="Arial" size="2"><img src="./Geodesic Chess_files/geodesic_board.jpg" width="395" height="395"></font></p>
+
+<p><font face="Times New Roman">Each player starts with 55 pieces; 1 King, 3 <st1:place w:st="on">
+Queens</st1:place>
+, 6 Rooks, 6 Templars, 3 Obelisks, 15 Squires and 21 Pawns. There are versions
+where terrain is introduced and the movement of pieces is affected.</font></p>
+
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman">There
+are fifteen Squires and twenty-one Pawns in Geodesic Chess-Standard. Along with
+the Obelisk, they comprise a complete circular front-line in their starting
+positions.</font><o:p>
+<font face="Times New Roman">&nbsp;</font></o:p></p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt">&nbsp;</p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman">In
+Geodesic Chess the King, Queen, and Rook move in exactly the same manner as in
+traditional hexagonal Chess. Pawns, Bishops, and Knights have been altered, and
+new pieces have been introduced.</font>
+</p>
+<a name="board"> </a>
+<h2>Board</h2>
+
+<p><font face="Times New Roman">On a GeoBoard, both a diagonal and a row (rank
+or file) go all the way around the board and back to the same exact spot, except
+where a path is blocked by an obstacle.</font></p>
+
+<p><font face="Times New Roman">There will always be twelve pentagon-shaped
+spaces on any GeoBoard. In Geodesic Chess Basic these spaces are part of the
+playing field. A pentagon disrupts the normal path of a piece moving on either a
+row or a diagonal. For this reason, any piece may move onto, but not across, a
+pentagon in a single move. Moving on and off a pentagon must be done in two
+separate moves.</font></p>
+
+<p><font face="Times New Roman">The triangular area that falls between any three
+pentagons is called a Section. There are always 20 Sections on a GeoBoard,
+regardless of its size (10 Sections per hemisphere, or Side.) On a GeoBoard
+there are many spaces. Geodesic Chess compensates for this by using more power
+pieces and by allowing for quicker advancement in rank by lesser pieces.</font></p>
+
+<p><font face="Times New Roman">Notation in Geodesic Chess is simple and
+intuitive. Each of the twelve pentagon spaces is assigned a letter; A, B, C, D,
+E, F, for one player's side of the GeoBoard, and U, V, W, X, Y, Z, for the
+opponent's side. The Center Space of any Section is named after three pentagons
+surrounding it. For spaces that fall on the diagonals between two pentagons,
+simply count how many spaces from each. (Note: c1a2 is the same as a2c1, and can
+be written either way.) To notate the spaces that radiate out from a pentagon,
+count the spaces then note the two pentagons on either side. Example: Q a1c2 x P
+b1c2.</font></p>
+
+<p><font face="Arial" size="2"><img src="./Geodesic Chess_files/geodesic_notation.jpg" width="303" height="289"></font></p>
+<a name="array"> </a>
+<h2>Setup</h2>
+
+<p><font face="Times New Roman">Players start on opposite sides of the GeoBoard.
+One player is selected randomly to begin.</font></p>
+
+<a name="pieces"> </a>
+<h2>Pieces</h2>
+
+<p><font face="Times New Roman">The movement of the King, Queen and Rook are the
+same as in established variants of hexagonal chess, such as the one created by
+H. D. Baskerville in 1929.&nbsp;</font></p>
+
+<p><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_king.jpg" width="40" height="37">&nbsp;&nbsp;
+The King may move one space in any direction, either by row or by diagonal. The
+King may not move into or through check. The King may not move diagonally over a
+row protected by an opposing piece, but may it move diagonally between two
+spaces protected by opposing pieces, as the diagonal exists separately from the
+spaces in question. The King's Starting Position is the center hex space in its <st1:place w:st="on">
+<st1:placetype w:st="on">
+Home</st1:placetype>
+ <st1:placetype w:st="on">
+Territory</st1:placetype>
+</st1:place>
+. <span style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;</span></font></p>
+
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_queen.jpg" width="30" height="30">&nbsp;&nbsp;
+The Queen moves as many spaces as it wishes in any direction, by row or
+diagonal, given it is not blocked by another piece. There are three <st1:place w:st="on">
+Queens</st1:place>
+ in Geodesic Chess-Standard and their Starting position is shown above.</font></p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><o:p>
+<font face="Times New Roman">&nbsp;</font></o:p>
+</p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_rook.jpg" width="28" height="30">&nbsp;&nbsp;
+The Rook moves as many spaces as it wishes along a row only. There are six Rooks
+in Geodesic Chess-Standard. They all start form the six hex spaces that are
+partially inside the King's <st1:place w:st="on">
+<st1:placetype w:st="on">
+Home</st1:placetype>
+ <st1:placetype w:st="on">
+Territory</st1:placetype>
+</st1:place>
+, defined in the Rules section.</font></p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><o:p>
+<font face="Times New Roman">&nbsp;</font></o:p>
+</p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_obelisk.jpg" width="17" height="18">&nbsp;&nbsp;
+The Obelisk is confined to the Kings home territory. It cannot capture opposing
+pieces, nor can it be captured. Its sole purpose is to guard the King by
+blocking attacking pieces. The Obelisk cannot leave the home territory. If a
+King is forced into Exile (see the Rules), it leaves the protection of the
+Obelisk. The Obelisk moves one space in any direction. There are three Obelisks
+in Geodesic Chess-Standard. They start from the three black pentagon spaces at
+the corners of the King's <st1:place w:st="on">
+<st1:placetype w:st="on">
+Home</st1:placetype>
+ <st1:placetype w:st="on">
+Territory</st1:placetype>
+</st1:place>
+.</font></p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt">&nbsp;</p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_templar.jpg" width="29" height="28">&nbsp;&nbsp;
+The Templar is a combination of the traditional Knight and Bishop. The most
+important thing to know about the Templar is that, while it doesn't have the
+long-range movement of the Queen and Rook, it is a formidable piece in close
+quarters. The Templar moves three spaces diagonally, <i style="mso-bidi-font-style: normal">or</i>
+two spaces forward and one to the side. There are Six Templars in Geodesic Chess
+Basic. They are positioned next to and in between the rooks. Together, the Rooks
+and the Templars form a solid ring around the King and <st1:place w:st="on">
+Queens</st1:place>
+.</font></p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><o:p>
+<font face="Times New Roman">&nbsp;</font></o:p>
+</p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_pawn.jpg" width="23" height="24">&nbsp;&nbsp;
+The Pawn moves in a forward direction only, one or two spaces, and captures on a
+forward diagonal. Whereas a Pawn in traditional hexagonal chess has only one
+forward direction, a Pawn in Geodesic Chess has a choice of three. When a Pawn
+makes it first move from its starting position on the board, it may move one,
+two, or three spaces. <span style="mso-spacerun: yes">&nbsp;</span>The center
+hexagonal space of each Section of the GeoBoard has a North-South indicator line
+to help distinguish what is a forward direction for a Pawn. When a Pawn has
+crossed the entire board and moves onto the opposing player's Home Territory, it
+may be traded for any higher-ranking piece.</font></p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><o:p>
+<font face="Times New Roman">&nbsp;</font></o:p>
+</p>
+<p class="MsoNormal" style="MARGIN: 0in 0in 0pt"><font face="Times New Roman"><img border="0" src="./Geodesic Chess_files/geodesic_squire.jpg" width="33" height="26">&nbsp;&nbsp;
+The Squire moves like a Pawn, in one of three possible forward directions, and
+captures on a forward diagonal. The Squire may move one, two, or three spaces on
+any move. When a Squire captures a higher-ranking piece, it has the option of
+assuming the rank of the captured piece.<span style="mso-spacerun: yes">&nbsp; </span>When
+a non-promoted Squire has crossed the entire board and moves onto the opposing
+player's home territory, it may be traded for any higher-ranking piece.</font><o:p>
+<font face="Times New Roman">&nbsp;</font></o:p></p>
+
+<a name="rules"> </a>
+<h2>Rules</h2>
+
+<p><font face="Times New Roman">Each King has a <st1:place w:st="on">
+<st1:placetype w:st="on">
+Home</st1:placetype>
+ <st1:placetype w:st="on">
+Territory</st1:placetype>
+</st1:place>
+ where it is best protected. If a King is forced to flee its <st1:place w:st="on">
+<st1:placetype w:st="on">
+Home</st1:placetype>
+ <st1:placetype w:st="on">
+Territory</st1:placetype>
+</st1:place>
+, it is then in Exile, and may not return there. The Home Territory are the
+nineteen spaces that fall inside or partially inside the Section a player's
+pieces start from, including the three black pentagon spaces at the corners. </font></p>
+<p>&nbsp;</p>
+<p><font face="Times New Roman">© 2004 Jack Cheiky</font></p>
+
+﻿</article>
+<br clear="ALL">
+<footer>
+<style>
+.tags {display: flex; flex-wrap: wrap;}
+.cat, .tag {white-space: nowrap; margin-right: 1ex; margin-bottom: .5ex;}
+#endfooter {display: flex; flex-flow: row nowrap; align-items: stretch; background-color: beige; padding: 0; margin: 0;}
+@media (orientation: portrait) {
+	#endfooter {flex-flow: column wrap;}
+}
+</style>
+<br clear="ALL">
+<div id="endfooter"><div style="flex: 1 1 300px; background-color: var(--nav-border-color); padding: 1em;">
+<div style="display: inline-block; padding: 1ex; background-color: beige"><a href="https://www.chessvariants.com/" alt="The Chess Variant Pages"><img src="./Geodesic Chess_files/cvp-logo.png"></a></div><p>The Chess Variant Pages is an amateur, hobbyist website that has been run by volunteers since it was founded in 1995. It focuses on documenting games based on, related to, or similar enough to Chess and on letting you play many of them.</p><p><a href="https://www.chessvariants.com/who.html" title="Who is behind the Chess Variant Pages?">Who</a> <a href="https://www.chessvariants.com/what.html" title="What is a Chess Variant?">What</a> <a href="https://www.chessvariants.com/history.html" title="When did Chess variants begin and get going?">When</a> <a href="https://www.chessvariants.com/where.html" title="Where can I find equipment and opponents to play Chess Variants?">Where</a> <a href="https://www.chessvariants.com/why.html" title="Why play Chess variants?">Why</a> <a href="https://www.chessvariants.com/which.html" title="Which Chess variants are best?">Which</a> <a href="https://www.chessvariants.com/how.html" title="How can I create and contribute my own Chess variants?">How</a></p></div><div style="flex: 1 1 300px; background-color: var(--nav-bgcolor); padding: 1em; padding: 0">
+<ul>
+		<li>
+		<span style="font-family: &#39;Google Sans&#39;, &#39;Product Sans&#39;, --var(sans-serif), sans-serif; font-weight: bold;"><font color="#4285F4">G</font><font color="#EA4335">o</font><font color="#FBBC05">o</font><font color="#4285F4">g</font><font color="34A853">l</font><font color="EA4335">e</font></span> Custom Search
+		<div class="cse-branding-right" style="margin: 0; padding: 0;">
+		  <div class="cse-branding-form">
+			<form action="https://www.google.com/" id="cse-search-box" target="_blank">
+			  <div>
+				<input type="search" name="q" tabindex="0" size="14" placeholder="Search Site">
+				<input type="hidden" name="cx" value="partner-pub-2787503004438672:4328536141">
+				<input type="hidden" name="ie" value="UTF-8">
+				<input type="submit" name="sa" value="Search">
+			  </div>
+			</form>
+		  </div>
+		</div>
+		</li>
+	<li><a href="https://www.chessvariants.com/index/msdisplay.php?itemid=MSchess-variants-query">Query Database</a></li>
+	<li><a href="https://www.chessvariants.com/index/whatsnew.php">What's New</a></li>
+	<li><a href="https://www.chessvariants.com/alphabet.html">Alphabetical Index</a></li>
+	<li><a href="https://www.chessvariants.com/Gindex.html">Topic Index</a></li>
+	<li><a href="https://www.chessvariants.com/index/tags.php">Tags</a></li>
+	<li><a href="https://www.chessvariants.com/index/listcomments.php?order=DESC">Comments</a></li>
+</ul>
+<ul>
+<li><a href="https://www.chessvariants.com/privacy.html" rel="nofollow">Privacy</a></li>
+</ul>
+</div><div style="flex: 1 1 300px; background-color: var(--nav-border-color); padding: 1em">
+
+<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+<input type="hidden" name="cmd" value="_s-xclick">
+<input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----MIIHXwYJKoZIhvcNAQcEoIIHUDCCB0wCAQExggEwMIIBLAIBADCBlDCBjjELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKEwtQYXlQYWwgSW5jLjETMBEGA1UECxQKbGl2ZV9jZXJ0czERMA8GA1UEAxQIbGl2ZV9hcGkxHDAaBgkqhkiG9w0BCQEWDXJlQHBheXBhbC5jb20CAQAwDQYJKoZIhvcNAQEBBQAEgYCCVoOMZRb2mX9MHN3nD9t2gtzRI8/7CAPehfOOCkTdENlJG0Emkz8E63jxMg/SwxPZu84o9N1tVHMexVhcJgPYi2H4oreUPJe9N+MkN8J3N3uHUpztRLi6MdWk3qcc693PXXEmR80IWPNNP0P4BiI1TZYXEGqlUymfOC2oJ7xILDELMAkGBSsOAwIaBQAwgdwGCSqGSIb3DQEHATAUBggqhkiG9w0DBwQItp72RMJTniuAgbiR6QB9wXrB6Ic8vIG+DOWpZvNbJPAmKXIjIsSV/jqOUXISwvwfg8xcihLQRRyyR5K5Gx9CGH4WZ3keyU9ObhsfE+yEv6vYx3dwkMfxRjJzdwFUpN8LfmocolRvUKLCycFg5TWwygfHZPAhfHTaheAY18YTJGkvk0VL2ZgaEzT+c9FKuW8wmCh5QELuB6DodTmLN9eSFEcLE+MW4V67/S0nVkeETSHyDi9APl7+z7HOgydcv3H5PvU4oIIDhzCCA4MwggLsoAMCAQICAQAwDQYJKoZIhvcNAQEFBQAwgY4xCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEUMBIGA1UEChMLUGF5UGFsIEluYy4xEzARBgNVBAsUCmxpdmVfY2VydHMxETAPBgNVBAMUCGxpdmVfYXBpMRwwGgYJKoZIhvcNAQkBFg1yZUBwYXlwYWwuY29tMB4XDTA0MDIxMzEwMTMxNVoXDTM1MDIxMzEwMTMxNVowgY4xCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEUMBIGA1UEChMLUGF5UGFsIEluYy4xEzARBgNVBAsUCmxpdmVfY2VydHMxETAPBgNVBAMUCGxpdmVfYXBpMRwwGgYJKoZIhvcNAQkBFg1yZUBwYXlwYWwuY29tMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDBR07d/ETMS1ycjtkpkvjXZe9k+6CieLuLsPumsJ7QC1odNz3sJiCbs2wC0nLE0uLGaEtXynIgRqIddYCHx88pb5HTXv4SZeuv0Rqq4+axW9PLAAATU8w04qqjaSXgbGLP3NmohqM6bV9kZZwZLR/klDaQGo1u9uDb9lr4Yn+rBQIDAQABo4HuMIHrMB0GA1UdDgQWBBSWn3y7xm8XvVk/UtcKG+wQ1mSUazCBuwYDVR0jBIGzMIGwgBSWn3y7xm8XvVk/UtcKG+wQ1mSUa6GBlKSBkTCBjjELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKEwtQYXlQYWwgSW5jLjETMBEGA1UECxQKbGl2ZV9jZXJ0czERMA8GA1UEAxQIbGl2ZV9hcGkxHDAaBgkqhkiG9w0BCQEWDXJlQHBheXBhbC5jb22CAQAwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQUFAAOBgQCBXzpWmoBa5e9fo6ujionW1hUhPkOBakTr3YCDjbYfvJEiv/2P+IobhOGJr85+XHhN0v4gUkEDI8r2/rNk1m0GA8HKddvTjyGw/XqXa+LSTlDYkqI8OwR8GEYj4efEtcRpRYBxV8KxAW93YDWzFGvruKnnLbDAF6VR5w/cCMn5hzGCAZowggGWAgEBMIGUMIGOMQswCQYDVQQGEwJVUzELMAkGA1UECBMCQ0ExFjAUBgNVBAcTDU1vdW50YWluIFZpZXcxFDASBgNVBAoTC1BheVBhbCBJbmMuMRMwEQYDVQQLFApsaXZlX2NlcnRzMREwDwYDVQQDFAhsaXZlX2FwaTEcMBoGCSqGSIb3DQEJARYNcmVAcGF5cGFsLmNvbQIBADAJBgUrDgMCGgUAoF0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTYwMTE0MjEzNjI1WjAjBgkqhkiG9w0BCQQxFgQUVNbXCAazmxWv+wajvahDLE6MlZIwDQYJKoZIhvcNAQEBBQAEgYBRGUTNHXldUDnLSXFfihCWuDK4EPqC3lYDzc/JLDEk5MjCItFQF6x1g5v9bX4G+a12xmDtPqjVpDnShyBtK/hUSWyVbUAI/fGOJH2JbJ7mGp2dUFdWvnSYhQXYSKhtoXpjm4oDCWkY92DNGwkb5AHRzrTsKU5tzPRWAMfkep6uFA==-----END PKCS7-----
+">
+<input type="image" src="./Geodesic Chess_files/btn_donate_SM.gif" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="PayPal - The safer, easier way to pay online!">
+<img alt="" border="0" src="./Geodesic Chess_files/pixel.gif" width="1" height="1">
+</form><p>Operating expenses are covered through <a href="https://www.chessvariants.com/advertising.html">advertising</a> and donations. Help out by making a PayPal donation or by shopping with these affiliate links:</p> <ul><li><a href="https://www.gopjn.com/t/8-11811-298050-165466">House of Staunton</a></li> <li><a href="https://www.pntrac.com/t/8-11899-298050-169516">US Chess Sales</a></li><li><a href="https://www.pntrs.com/t/8-12214-298050-183325">Wholesale Chess</a></li> <li><a href="https://www.amazon.com/ref=as_li_ss_tl?_encoding=UTF8&amp;camp=1789&amp;creative=390957&amp;linkCode=ur2&amp;tag=chessvariants-20&amp;linkId=2V7I3MB5NIPBYE5K">Amazon.com</a></li> <li><a target="_blank" href="http://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_ff3=1&amp;pub=5575156131&amp;toolid=10001&amp;campid=5337820025&amp;customid=&amp;ipn=psmain&amp;icep_vectorid=229466&amp;kwid=902099&amp;mtid=824&amp;kw=lg">ebay.com</a></li></ul></div></div>
+<div style="text-align: right">https://www.chessvariants.com/<wbr>boardrules.dir/geodesic.html<br clear="all">[<a href="https://www.chessvariants.com/index/displayitem.php?itemid=GeodesicChess">info</a>] [<a href="https://www.chessvariants.com/indexmaint/editlink.php?itemid=GeodesicChess">links</a>] [<a href="https://www.chessvariants.com/indexmaint/edititem.php?itemid=GeodesicChess">edit</a>]</div><script type="text/javascript">
+  elem = document.getElementsByClassName("noscript");
+  for (i = 0; i < elem.length; i++) {
+    elem[i].style.display = "none";
+  }
+  elem = document.getElementsByClassName("idiagram");
+  for (i = 0; i < elem.length; i++) {
+    elem[i].style.display = "initial";
+  }
+</script>
+</footer>
+</main> 
+
+<script defer="" src="./Geodesic Chess_files/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;917954602e664471aaa20b247f9be1bb&quot;,&quot;r&quot;:1,&quot;server_timing&quot;:{&quot;name&quot;:{&quot;cfCacheStatus&quot;:true,&quot;cfEdge&quot;:true,&quot;cfExtPri&quot;:true,&quot;cfL4&quot;:true,&quot;cfOrigin&quot;:true,&quot;cfSpeedBrain&quot;:true},&quot;location_startswith&quot;:null}}" crossorigin="anonymous"></script>
+
+
+
+
+
+</body></html>
