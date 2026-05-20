@@ -28,6 +28,9 @@
     },
     "claudecode": {
       "image": "harness-test/claudecode"
+    },
+    "github-copilot": {
+      "image": "harness-test/github-copilot"
     }
   }
 }

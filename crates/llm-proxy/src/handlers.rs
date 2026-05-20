@@ -1,6 +1,6 @@
 use axum::{
     body::{Body, Bytes},
-    extract::State,
+    extract::{Path, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     Json,
@@ -413,6 +413,14 @@ pub async fn models(State(state): State<ProxyState>, headers: HeaderMap) -> Resp
             {
                 "id": state.model_name,
                 "object": "model"
+            },
+            {
+                "id": "gpt-4o",
+                "object": "model"
+            },
+            {
+                "id": "claude-opus-4-7",
+                "object": "model"
             }
         ]
     });
@@ -438,6 +446,32 @@ pub async fn models(State(state): State<ProxyState>, headers: HeaderMap) -> Resp
     .await;
 
     Json(response_body).into_response()
+}
+
+/// GET /v1/models/{model_id} — return model info if the ID is recognized.
+pub async fn model_by_id(
+    State(state): State<ProxyState>,
+    headers: HeaderMap,
+    Path(model_id): Path<String>,
+) -> Response {
+    // Auth check
+    if !is_authorized(&headers, &state.api_key) {
+        return auth_failure_response(&state, &generate_request_id(), "discovery", "GET", "/v1/models/{id}").await;
+    }
+
+    // Recognized model IDs: the actual upstream model plus common aliases
+    let known_ids = [state.model_name.as_str(), "gpt-4o", "claude-opus-4-7"];
+    if known_ids.iter().any(|id| *id == model_id) {
+        let response_body = json!({
+            "id": model_id,
+            "object": "model",
+            "created": 0,
+            "owned_by": "harness-test"
+        });
+        Json(response_body).into_response()
+    } else {
+        StatusCode::NOT_FOUND.into_response()
+    }
 }
 
 /// Write start/end records for an auth failure and return 401.
