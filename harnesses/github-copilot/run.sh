@@ -18,7 +18,7 @@ fi
 # Configure copilot to use the orchestrator proxy
 export COPILOT_OFFLINE=true
 export COPILOT_PROVIDER_BASE_URL="${LLM_URL}"
-export COPILOT_PROVIDER_TYPE="openai"
+export COPILOT_PROVIDER_TYPE="anthropic"
 export COPILOT_PROVIDER_API_KEY="${LLM_API_KEY}"
 export COPILOT_MODEL="gpt-4o"
 

@@ -78,13 +78,23 @@ pub(crate) async fn log_record(log: &Mutex<BufWriter<tokio::fs::File>>, record: 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 pub(crate) fn is_authorized(headers: &HeaderMap, api_key: &str) -> bool {
-    let Some(value) = headers.get(header::AUTHORIZATION) else {
-        return false;
-    };
-    let Ok(value) = value.to_str() else {
-        return false;
-    };
-    value == format!("Bearer {api_key}")
+    // Check Bearer token (OpenAI SDK)
+    if let Some(value) = headers.get(header::AUTHORIZATION) {
+        if let Ok(value) = value.to_str() {
+            if value == format!("Bearer {api_key}") {
+                return true;
+            }
+        }
+    }
+    // Check X-Api-Key (Anthropic SDK)
+    if let Some(value) = headers.get("x-api-key") {
+        if let Ok(value) = value.to_str() {
+            if value == api_key {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn generate_api_key() -> String {
