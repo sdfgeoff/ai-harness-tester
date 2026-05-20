@@ -74,6 +74,7 @@ pub struct RunArtifacts {
 #[derive(Debug)]
 pub struct RunExecution {
     pub run_id: String,
+    pub run_dir_name: String,
     pub status: RunStatus,
 }
 

@@ -165,7 +165,7 @@ fn execute_batch(
                 let execution = run::execute_run(&batch_id, &config, harness, harness_profile, harness_image_ids.get(harness).expect("preflight"), model, model_profile, Some(test.as_str()))?;
 
                 if execution.status != RunStatus::Completed { failed_runs += 1; }
-                run_references.push(BatchRunReference { run_id: execution.run_id.clone(), results_path: format!("runs/{}/results.json", execution.run_id) });
+                run_references.push(BatchRunReference { run_id: execution.run_id.clone(), results_path: format!("runs/{}/results.json", execution.run_dir_name) });
             }
         }
     }

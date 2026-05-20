@@ -19,7 +19,7 @@ use orchestrator_core::{
         copy_prompt_artifact, load_test_selection, prepare_temp_prompt, remove_temp_prompt,
         extract_initial_state,
     },
-    util::{format_timestamp, duration_ms, run_id},
+    util::{format_timestamp, duration_ms, run_id, run_dir_name},
 };
 
 /// Intermediate state after successful setup, before harness execution.
@@ -50,6 +50,7 @@ pub fn execute_run(
         .unwrap_or("no-test");
     let test_name_owned = test_name.to_string();
     let run_id = run_id(batch_id, harness_name, model_name, test_name);
+    let run_dir_name = run_dir_name(harness_name, model_name, test_name);
 
     tracing::info!(run_id = %run_id, harness = harness_name, model = model_name, test = %test_name, "starting run");
 
@@ -63,7 +64,7 @@ pub fn execute_run(
     })?;
     orchestrator_core::config::write_redacted_config_snapshot(&batch_dir, config)?;
 
-    let run_dir = batch_dir.join("runs").join(&run_id);
+    let run_dir = batch_dir.join("runs").join(&run_dir_name);
     fs::create_dir_all(&run_dir).map_err(|error| {
         format!(
             "failed to create run directory {}: {error}",
@@ -180,6 +181,7 @@ pub fn execute_run(
             orchestrator_core::models::write_results(&run_dir, &result)?;
             return Ok(RunExecution {
                 run_id,
+                run_dir_name: run_dir_name.clone(),
                 status: RunStatus::SetupFailed,
             });
         }
@@ -299,6 +301,7 @@ pub fn execute_run(
             orchestrator_core::models::write_results(&run_dir, &result)?;
             return Ok(RunExecution {
                 run_id,
+                run_dir_name: run_dir_name.clone(),
                 status: RunStatus::SetupFailed,
             });
         }
@@ -430,6 +433,7 @@ pub fn execute_run(
             println!("container completed successfully in {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
+                run_dir_name: run_dir_name.clone(),
                 status: RunStatus::Completed,
             })
         }
@@ -438,6 +442,7 @@ pub fn execute_run(
             eprintln!("container timed out after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
+                run_dir_name: run_dir_name.clone(),
                 status: RunStatus::TimedOut,
             })
         }
@@ -446,6 +451,7 @@ pub fn execute_run(
             eprintln!("container failed after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
+                run_dir_name: run_dir_name.clone(),
                 status: RunStatus::Failed,
             })
         }
@@ -454,6 +460,7 @@ pub fn execute_run(
             eprintln!("setup failed after {:.2?}", duration);
             Ok(RunExecution {
                 run_id,
+                run_dir_name: run_dir_name.clone(),
                 status: RunStatus::SetupFailed,
             })
         }

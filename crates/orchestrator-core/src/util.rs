@@ -18,6 +18,16 @@ pub fn run_id(batch_id: &str, harness: &str, model: &str, test: &str) -> String 
     format!("{batch_id}_{harness}_{model}_{test}_{suffix}")
 }
 
+/// Directory name for a run (without batch_id prefix).
+/// Used as the folder name under results/{date}/runs/.
+pub fn run_dir_name(harness: &str, model: &str, test: &str) -> String {
+    let harness = sanitize_fragment(harness);
+    let model = sanitize_fragment(model);
+    let test = sanitize_fragment(test);
+    let suffix = short_suffix();
+    format!("{harness}_{model}_{test}_{suffix}")
+}
+
 pub fn sanitize_fragment(value: &str) -> String {
     let mut sanitized = String::new();
     let mut last_was_dash = false;
