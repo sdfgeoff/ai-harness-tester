@@ -165,11 +165,12 @@ pub fn execute_run(
                 },
             };
             orchestrator_core::models::write_results(&run_dir, &result)?;
-            write_skipped_evaluation(&run_dir)?;
+            let evaluation_status = write_skipped_evaluation(&run_dir)?;
             return Ok(RunExecution {
                 run_id,
                 run_dir_name: run_dir_name.clone(),
                 status: RunStatus::SetupFailed,
+                evaluation_status,
             });
         }
     };
@@ -281,11 +282,12 @@ pub fn execute_run(
                 },
             };
             orchestrator_core::models::write_results(&run_dir, &result)?;
-            write_skipped_evaluation(&run_dir)?;
+            let evaluation_status = write_skipped_evaluation(&run_dir)?;
             return Ok(RunExecution {
                 run_id,
                 run_dir_name: run_dir_name.clone(),
                 status: RunStatus::SetupFailed,
+                evaluation_status,
             });
         }
     };
@@ -367,7 +369,7 @@ pub fn execute_run(
     };
 
     orchestrator_core::models::write_results(&run_dir, &result)?;
-    match run_status {
+    let evaluation_status = match run_status {
         RunStatus::Completed => {
             let selected_test = selected_test
                 .as_ref()
@@ -378,12 +380,10 @@ pub fn execute_run(
                     selected_test.name
                 )
             })?;
-            evaluate_completed_run(config, &run_id, &run_dir, selected_test, evaluator_image_id)?;
+            evaluate_completed_run(config, &run_id, &run_dir, selected_test, evaluator_image_id)?
         }
-        _ => {
-            write_skipped_evaluation(&run_dir)?;
-        }
-    }
+        _ => write_skipped_evaluation(&run_dir)?,
+    };
     println!("wrote {}", run_dir.join("results.json").display());
 
     match run_status {
@@ -393,6 +393,7 @@ pub fn execute_run(
                 run_id,
                 run_dir_name: run_dir_name.clone(),
                 status: RunStatus::Completed,
+                evaluation_status,
             })
         }
         RunStatus::TimedOut => {
@@ -402,6 +403,7 @@ pub fn execute_run(
                 run_id,
                 run_dir_name: run_dir_name.clone(),
                 status: RunStatus::TimedOut,
+                evaluation_status,
             })
         }
         RunStatus::Failed => {
@@ -411,6 +413,7 @@ pub fn execute_run(
                 run_id,
                 run_dir_name: run_dir_name.clone(),
                 status: RunStatus::Failed,
+                evaluation_status,
             })
         }
         RunStatus::SetupFailed => {
@@ -420,6 +423,7 @@ pub fn execute_run(
                 run_id,
                 run_dir_name: run_dir_name.clone(),
                 status: RunStatus::SetupFailed,
+                evaluation_status,
             })
         }
     }

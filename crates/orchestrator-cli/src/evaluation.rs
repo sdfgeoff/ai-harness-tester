@@ -12,7 +12,7 @@ use orchestrator_core::{
 use serde_json::Value;
 use time::OffsetDateTime;
 
-pub fn write_skipped_evaluation(run_dir: &Path) -> Result<(), String> {
+pub fn write_skipped_evaluation(run_dir: &Path) -> Result<EvaluationStatus, String> {
     write_evaluation(
         run_dir,
         &EvaluationResult {
@@ -25,7 +25,8 @@ pub fn write_skipped_evaluation(run_dir: &Path) -> Result<(), String> {
             result: None,
             error: None,
         },
-    )
+    )?;
+    Ok(EvaluationStatus::Skipped)
 }
 
 pub fn evaluate_completed_run(
@@ -34,7 +35,7 @@ pub fn evaluate_completed_run(
     run_dir: &Path,
     test: &TestSelection,
     evaluator_image_id: &str,
-) -> Result<(), String> {
+) -> Result<EvaluationStatus, String> {
     let started_at = OffsetDateTime::now_utc();
     let started = std::time::Instant::now();
     let logs_dir = run_dir.join("logs");
@@ -156,7 +157,9 @@ pub fn evaluate_completed_run(
         },
     };
 
-    write_evaluation(run_dir, &evaluation)
+    let status = evaluation.status;
+    write_evaluation(run_dir, &evaluation)?;
+    Ok(status)
 }
 
 fn read_scored_evaluation(path: &Path) -> Result<EvaluationScore, RunError> {

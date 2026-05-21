@@ -6,7 +6,7 @@ use std::{path::PathBuf, time::Instant};
 use time::OffsetDateTime;
 
 use orchestrator_core::config;
-use orchestrator_core::models::{BatchRunReference, BatchSummary, RunStatus};
+use orchestrator_core::models::{BatchRunReference, BatchSummary, EvaluationStatus, RunStatus};
 use orchestrator_core::test_selection::{evaluator_image_tag, load_test_selection};
 use orchestrator_core::util::{batch_id, duration_ms, format_timestamp};
 
@@ -185,6 +185,7 @@ fn execute_batch(
 
     // Execute runs in test/model/harness order
     let mut failed_runs = 0usize;
+    let mut failed_evaluations = 0usize;
     let mut run_references = Vec::new();
 
     for test in &tests {
@@ -214,6 +215,9 @@ fn execute_batch(
                 if execution.status != RunStatus::Completed {
                     failed_runs += 1;
                 }
+                if execution.evaluation_status == EvaluationStatus::Failed {
+                    failed_evaluations += 1;
+                }
                 run_references.push(BatchRunReference {
                     run_id: execution.run_id.clone(),
                     results_path: format!("runs/{}/results.json", execution.run_dir_name),
@@ -242,14 +246,24 @@ fn execute_batch(
         &config,
     )?;
 
-    if failed_runs > 0 {
-        Err(format!("{failed_runs} run(s) failed"))
+    if failed_runs > 0 || failed_evaluations > 0 {
+        Err(format_batch_failure(failed_runs, failed_evaluations))
     } else {
         println!(
             "batch {batch_id} completed successfully in {:.2?}",
             batch_started.elapsed()
         );
         Ok(())
+    }
+}
+
+fn format_batch_failure(failed_runs: usize, failed_evaluations: usize) -> String {
+    match (failed_runs, failed_evaluations) {
+        (0, evaluations) => format!("{evaluations} evaluation(s) failed"),
+        (runs, 0) => format!("{runs} run(s) failed"),
+        (runs, evaluations) => {
+            format!("{runs} run(s) failed and {evaluations} evaluation(s) failed")
+        }
     }
 }
 
@@ -358,5 +372,15 @@ mod tests {
         };
         let result = expand_all_models(&["all".to_owned()], &config).unwrap();
         assert_eq!(result, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn formats_batch_failure_for_run_and_evaluation_failures() {
+        assert_eq!(format_batch_failure(0, 2), "2 evaluation(s) failed");
+        assert_eq!(format_batch_failure(3, 0), "3 run(s) failed");
+        assert_eq!(
+            format_batch_failure(1, 4),
+            "1 run(s) failed and 4 evaluation(s) failed"
+        );
     }
 }

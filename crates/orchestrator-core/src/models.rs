@@ -84,6 +84,7 @@ pub struct RunExecution {
     pub run_id: String,
     pub run_dir_name: String,
     pub status: RunStatus,
+    pub evaluation_status: EvaluationStatus,
 }
 
 // ── Run metrics (ticket 022) ────────────────────────────────────────────────
