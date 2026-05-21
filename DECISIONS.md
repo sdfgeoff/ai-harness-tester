@@ -32,10 +32,13 @@ results/
     runs/
       <run_id>/
         results.json
+        evaluation.json
         working_dir/
+        evaluation_output/
         logs/
           harness.log
           proxy.ndjson
+          evaluator.log
         PROMPT.md
 ```
 
@@ -60,6 +63,7 @@ These schemas are the working v0 data models. Update this section when changing 
 ```json
 {
   "timeout_seconds": 1800,
+  "evaluation_timeout_seconds": 300,
   "results_dir": "results",
   "models": {
     "qwen-coder-32b": {
@@ -88,7 +92,8 @@ These schemas are the working v0 data models. Update this section when changing 
   "runs": [
     {
       "run_id": "20260519T091530Z_codex_qwen-coder-32b_fix-python-bug_a1b2c3",
-      "results_path": "runs/20260519T091530Z_codex_qwen-coder-32b_fix-python-bug_a1b2c3/results.json"
+      "results_path": "runs/20260519T091530Z_codex_qwen-coder-32b_fix-python-bug_a1b2c3/results.json",
+      "evaluation_path": "runs/20260519T091530Z_codex_qwen-coder-32b_fix-python-bug_a1b2c3/evaluation.json"
     }
   ]
 }
@@ -139,6 +144,36 @@ These schemas are the working v0 data models. Update this section when changing 
     "harness_log": "logs/harness.log",
     "proxy_log": "logs/proxy.ndjson"
   }
+}
+```
+
+### Run `evaluation.json`
+
+```json
+{
+  "status": "scored",
+  "started_at": "2026-05-21T00:00:00Z",
+  "finished_at": "2026-05-21T00:00:01Z",
+  "duration_ms": 1000,
+  "evaluator": {
+    "image": "harness-test-evaluator/fix-python-bug:latest",
+    "image_id": "sha256:..."
+  },
+  "result": {
+    "score": 0.9,
+    "breakdown": {
+      "correctness": 1.0
+    }
+  }
+}
+```
+
+Skipped evaluations are represented separately from execution status:
+
+```json
+{
+  "status": "skipped",
+  "reason": "run_not_completed"
 }
 ```
 

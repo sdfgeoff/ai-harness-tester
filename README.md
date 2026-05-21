@@ -2,11 +2,9 @@
 
 Harness Test compares coding harnesses against the same local model by running each harness in Docker, routing LLM traffic through an orchestrator proxy, and preserving run artifacts.
 
-The current implementation target is v0. v0 is complete when the smoke harness and smoke test can run through the final CLI and produce the expected batch/run artifacts.
-
 ## Smoke Target
 
-Build the smoke harness:
+Build harness and evaluator images:
 
 ```sh
 ./build-harnesses.sh
@@ -28,10 +26,13 @@ results/
     runs/
       <run_id>/
         results.json
+        evaluation.json
         working_dir/
+        evaluation_output/
         logs/
           harness.log
           proxy.ndjson
+          evaluator.log
         PROMPT.md
 ```
 
@@ -41,6 +42,7 @@ The smoke test lives in `tests/smoke/` and contains:
 
 - `initial_state.zip`
 - `PROMPT.md`
+- `evaluate.Dockerfile`
 
 The harness image is built from `harnesses/smoke/Dockerfile` and tagged as `harness-test/smoke:latest`.
 
@@ -71,31 +73,13 @@ Run an image with a selected test:
 cargo run -p orchestrator-cli -- run-image --harnesses smoke --models smoke-local --tests smoke --config config.json
 ```
 
-At this stage the command runs the image, reports its exit status, and writes minimal run artifacts. Later tickets add working directory mounts, prompt handling, and proxy wiring.
+Each run writes both execution and evaluation artifacts. `results.json` records execution outcome and run metrics. `evaluation.json` records evaluator outcome and, when available, the scored result. Harness stdout and stderr are captured together in `logs/harness.log`, evaluator stdout and stderr are captured in `logs/evaluator.log`, and both are streamed live to the console with a run-identifying prefix.
 
-The command writes a minimal run artifact:
+When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state.zip`, `tests/<name>/PROMPT.md`, and `tests/<name>/evaluate.Dockerfile`, then records SHA-256 hashes for the initial state and prompt in `results.json`. The `--tests`, `--harnesses`, and `--models` flags accept comma-separated values.
 
-```text
-results/
-  <batch_id>/
-    config.json
-    summary.json
-    runs/
-      <run_id>/
-        logs/
-          harness.log
-        working_dir/
-        PROMPT.md
-        results.json
-```
+Selected combinations run sequentially in test/model/harness order. A failed harness run or failed evaluation is preserved and does not stop later selected combinations. The CLI exits non-zero after the batch if any run failed or any evaluation failed.
 
-At this stage `results.json` records run ID, status, timestamps, duration, harness exit code, and the relative harness log path. Harness stdout and stderr are captured together in `logs/harness.log` and streamed live to the console with the run ID as a prefix.
-
-When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state.zip` and `tests/<name>/PROMPT.md`, then records SHA-256 hashes for both files in `results.json`. The `--tests`, `--harnesses`, and `--models` flags accept comma-separated values.
-
-Selected combinations run sequentially in test/model/harness order. A failed harness run is preserved and does not stop later selected combinations. The CLI exits non-zero after the batch if any run failed.
-
-Before creating a batch directory, the CLI validates selected test folders, required test files, harness profile names, model profile names, local Docker image availability, and upstream model availability. For each selected model profile, the CLI calls `<base_url>/models` with the configured API key and requires `model_name` to appear in the response. These preflight failures are configuration errors and do not produce result artifacts.
+Before creating a batch directory, the CLI validates selected test folders, required test files, harness profile names, model profile names, local harness image availability, local evaluator image availability, and upstream model availability. For each selected model profile, the CLI calls `<base_url>/models` with the configured API key and requires `model_name` to appear in the response. These preflight failures are configuration errors and do not produce result artifacts.
 
 The selected test archive is extracted into `working_dir` at the root of the run artifact. Archive entries with absolute paths, `..` path traversal, or symlinks are rejected before Docker starts.
 
@@ -114,10 +98,22 @@ LLM_API_KEY=<per-run proxy API key>
 
 The per-run proxy starts before Docker and shuts down after the harness run finishes.
 
+For completed runs, the orchestrator then launches the test evaluator container. The evaluator receives:
+
+```text
+/run       # read-only full run artifact
+/evaluator # read-only full test directory
+/output    # writable evaluator output directory
+```
+
+The evaluator image defines its own entrypoint/cmd and must write `/output/evaluation.json`.
+
 Harnesses are selected by name from `config.json`:
 
 ```json
 {
+  "timeout_seconds": 1800,
+  "evaluation_timeout_seconds": 300,
   "models": {
     "smoke-local": {
       "model_name": "smoke-local",
@@ -149,11 +145,23 @@ After all selected runs finish, `summary.json` is written at the batch root. It 
   "runs": [
     {
       "run_id": "20260519T020329Z_smoke_smoke-local_smoke_9341d8",
-      "results_path": "runs/20260519T020329Z_smoke_smoke-local_smoke_9341d8/results.json"
+      "results_path": "runs/20260519T020329Z_smoke_smoke-local_smoke_9341d8/results.json",
+      "evaluation_path": "runs/20260519T020329Z_smoke_smoke-local_smoke_9341d8/evaluation.json"
     }
   ]
 }
 ```
+
+## Evaluation
+
+Each run writes `evaluation.json` beside `results.json`.
+
+- Non-completed runs write a skipped evaluation artifact.
+- Completed runs launch the evaluator container immediately.
+- If evaluator output is valid, `evaluation.json` is written with `status: "scored"` and a `result` payload.
+- If the evaluator container fails, times out, omits `/output/evaluation.json`, or writes invalid JSON/schema, `evaluation.json` is written with `status: "failed"` and a structured `error`.
+
+The full evaluator output directory is preserved as `evaluation_output/` at the run root.
 
 ## Proxy
 
@@ -181,7 +189,7 @@ Each run writes an append-only NDJSON log at `logs/proxy.ndjson`. Every proxied 
 
 - `kind` is `"generation"` for `/v1/responses` and `"discovery"` for `/v1/models`.
 - `request_body` is present only for authorized requests. Auth failures omit it.
-- `request_body` contains the payload *after* model rewrite (i.e., `model` is the upstream model).
+- `request_body` contains the payload _after_ model rewrite (i.e., `model` is the upstream model).
 
 **`request_end`** — written when the upstream response is received or an error occurs:
 
@@ -263,14 +271,15 @@ The orchestrator enforces a wall-clock timeout per run, configured via `timeout_
 
 ## Run Status Semantics
 
-| Status | When | `harness_exit_code` | `error` |
-|---|---|---|---|
-| `completed` | Container exits with code 0 | `0` | `null` |
-| `failed` | Container exits with non-zero code | non-zero integer | `null` |
-| `timed_out` | Wall-clock timeout exceeded | `null` | `{"kind": "timeout", ...}` |
-| `setup_failed` | Pre-harness setup error (extraction, proxy, docker) | `null` | `{"kind": "setup_failed", ...}` |
+| Status         | When                                                | `harness_exit_code` | `error`                         |
+| -------------- | --------------------------------------------------- | ------------------- | ------------------------------- |
+| `completed`    | Container exits with code 0                         | `0`                 | `null`                          |
+| `failed`       | Container exits with non-zero code                  | non-zero integer    | `null`                          |
+| `timed_out`    | Wall-clock timeout exceeded                         | `null`              | `{"kind": "timeout", ...}`      |
+| `setup_failed` | Pre-harness setup error (extraction, proxy, docker) | `null`              | `{"kind": "setup_failed", ...}` |
 
 Setup failures occur after the batch starts but before the harness container runs. Examples:
+
 - Failed `initial_state.zip` extraction
 - Failed temporary prompt file creation
 - Proxy startup failure
