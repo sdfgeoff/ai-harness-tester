@@ -12,7 +12,7 @@
     },
     "qwen3.6-27b": {
       "model_name": "unsloth/Qwen3.6-27B",
-      "base_url": "http://192.168.18.4:8080/v1",
+      "base_url": "http://123.253.208.185:42427/v1",
       "api_key": "lp_019e421d-9501-74c0-a783-5cde2b6dee12_019e421d-9501-74c0-a783-5ced4795896b"
     }
   },

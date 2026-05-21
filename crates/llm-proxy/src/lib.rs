@@ -19,7 +19,7 @@ use serde_json::Value;
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
     net::TcpListener,
-    sync::{Mutex, oneshot},
+    sync::{oneshot, Mutex},
     task::JoinHandle,
 };
 
@@ -148,7 +148,10 @@ pub async fn start_proxy(config: ProxyConfig) -> Result<ProxyHandle, String> {
     let app = Router::new()
         .route("/v1/models", get(handlers::models))
         .route("/v1/responses", post(handlers::responses))
-        .route("/v1/chat/completions", post(chat_handlers::chat_completions))
+        .route(
+            "/v1/chat/completions",
+            post(chat_handlers::chat_completions),
+        )
         .route("/v1/messages", post(anthropic_handlers::messages))
         .with_state(state);
 

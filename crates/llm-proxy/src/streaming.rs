@@ -10,11 +10,7 @@ use reqwest::Response as UpstreamResponse;
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
 
-use crate::{
-    ProxyState,
-    log_record,
-    utc_now,
-};
+use crate::{log_record, utc_now, ProxyState};
 
 /// Which API's usage field names to expect from upstream.
 #[derive(Debug, Clone, Copy)]
@@ -157,7 +153,9 @@ pub struct ReceiverStreamCompat {
 }
 
 impl ReceiverStreamCompat {
-    pub fn new(rx: tokio::sync::mpsc::Receiver<Result<axum::body::Bytes, std::convert::Infallible>>) -> Self {
+    pub fn new(
+        rx: tokio::sync::mpsc::Receiver<Result<axum::body::Bytes, std::convert::Infallible>>,
+    ) -> Self {
         Self { rx }
     }
 }

@@ -8,13 +8,7 @@ use axum::{
 use serde_json::{json, Value};
 use std::time::Instant;
 
-use crate::{
-    ProxyState,
-    log_record,
-    is_authorized,
-    generate_request_id,
-    utc_now,
-};
+use crate::{generate_request_id, is_authorized, log_record, utc_now, ProxyState};
 
 /// Main entry point for POST /v1/responses.
 /// Detects streaming requests and routes to the appropriate handler.
@@ -25,7 +19,14 @@ pub async fn responses(
 ) -> Response {
     // Quick auth check before parsing
     if !is_authorized(&headers, &state.api_key) {
-        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/responses").await;
+        return auth_failure_response(
+            &state,
+            &generate_request_id(),
+            "generation",
+            "POST",
+            "/v1/responses",
+        )
+        .await;
     }
 
     // Parse request body to check for streaming
@@ -39,11 +40,7 @@ pub async fn responses(
                 .into_response()
         }
         Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                "request body must be valid JSON",
-            )
-                .into_response()
+            return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response()
         }
     };
 
@@ -51,17 +48,9 @@ pub async fn responses(
     let is_streaming = payload.get("stream").and_then(Value::as_bool) == Some(true);
 
     if is_streaming {
-        responses_streaming(
-            State(state),
-            headers,
-            body,
-        ).await
+        responses_streaming(State(state), headers, body).await
     } else {
-        responses_non_streaming(
-            State(state),
-            headers,
-            body,
-        ).await
+        responses_non_streaming(State(state), headers, body).await
     }
 }
 
@@ -72,13 +61,28 @@ async fn responses_streaming(
     body: Bytes,
 ) -> Response {
     if !is_authorized(&headers, &state.api_key) {
-        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/responses").await;
+        return auth_failure_response(
+            &state,
+            &generate_request_id(),
+            "generation",
+            "POST",
+            "/v1/responses",
+        )
+        .await;
     }
 
     let mut payload = match serde_json::from_slice::<Value>(&body) {
         Ok(Value::Object(payload)) => payload,
-        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
-        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+        Ok(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "request body must be a JSON object",
+            )
+                .into_response()
+        }
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response()
+        }
     };
 
     let original_model = payload
@@ -163,7 +167,14 @@ async fn responses_non_streaming(
 ) -> Response {
     // Auth check — log failure without request body
     if !is_authorized(&headers, &state.api_key) {
-        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/responses").await;
+        return auth_failure_response(
+            &state,
+            &generate_request_id(),
+            "generation",
+            "POST",
+            "/v1/responses",
+        )
+        .await;
     }
 
     // Parse request body
@@ -177,11 +188,7 @@ async fn responses_non_streaming(
                 .into_response()
         }
         Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                "request body must be valid JSON",
-            )
-                .into_response()
+            return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response()
         }
     };
 
@@ -303,12 +310,11 @@ async fn responses_non_streaming(
     };
 
     // Parse response body for the log record (store as JSON Value if possible)
-    let response_body_value = serde_json::from_slice::<Value>(&response_body).unwrap_or_else(
-        |_| {
+    let response_body_value =
+        serde_json::from_slice::<Value>(&response_body).unwrap_or_else(|_| {
             let text = String::from_utf8_lossy(&response_body).to_string();
             Value::String(text)
-        },
-    );
+        });
 
     // Write request_end
     let duration_ms = start_instant.elapsed().as_millis() as u64;

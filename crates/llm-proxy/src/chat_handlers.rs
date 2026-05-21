@@ -8,13 +8,7 @@ use axum::{
 };
 use serde_json::{json, Value};
 
-use crate::{
-    ProxyState,
-    log_record,
-    is_authorized,
-    generate_request_id,
-    utc_now,
-};
+use crate::{generate_request_id, is_authorized, log_record, utc_now, ProxyState};
 
 /// Main entry point for POST /v1/chat/completions.
 pub async fn chat_completions(
@@ -23,13 +17,28 @@ pub async fn chat_completions(
     body: Bytes,
 ) -> Response {
     if !is_authorized(&headers, &state.api_key) {
-        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/chat/completions").await;
+        return auth_failure_response(
+            &state,
+            &generate_request_id(),
+            "generation",
+            "POST",
+            "/v1/chat/completions",
+        )
+        .await;
     }
 
     let payload = match serde_json::from_slice::<Value>(&body) {
         Ok(Value::Object(payload)) => payload,
-        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
-        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+        Ok(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "request body must be a JSON object",
+            )
+                .into_response()
+        }
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response()
+        }
     };
 
     let is_streaming = payload.get("stream").and_then(Value::as_bool) == Some(true);
@@ -48,13 +57,28 @@ async fn chat_completions_non_streaming(
     body: Bytes,
 ) -> Response {
     if !is_authorized(&headers, &state.api_key) {
-        return auth_failure_response(&state, &generate_request_id(), "generation", "POST", "/v1/chat/completions").await;
+        return auth_failure_response(
+            &state,
+            &generate_request_id(),
+            "generation",
+            "POST",
+            "/v1/chat/completions",
+        )
+        .await;
     }
 
     let mut payload = match serde_json::from_slice::<Value>(&body) {
         Ok(Value::Object(payload)) => payload,
-        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
-        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+        Ok(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "request body must be a JSON object",
+            )
+                .into_response()
+        }
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response()
+        }
     };
 
     let original_model = payload
@@ -100,19 +124,55 @@ async fn chat_completions_non_streaming(
             let response_body = match response.bytes().await {
                 Ok(body) => body,
                 Err(read_error) => {
-                    log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
-                        "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
-                        status, None, None, Some(&format!("failed to read upstream response body: {read_error}"))).await;
-                    return (StatusCode::BAD_GATEWAY, format!("failed to read upstream response body: {read_error}")).into_response();
+                    log_request_end(
+                        &state.log,
+                        &request_id,
+                        start_instant.elapsed().as_millis() as u64,
+                        "generation",
+                        "POST",
+                        "/v1/chat/completions",
+                        &original_model,
+                        &state.model_name,
+                        status,
+                        None,
+                        None,
+                        Some(&format!(
+                            "failed to read upstream response body: {read_error}"
+                        )),
+                    )
+                    .await;
+                    return (
+                        StatusCode::BAD_GATEWAY,
+                        format!("failed to read upstream response body: {read_error}"),
+                    )
+                        .into_response();
                 }
             };
             (status, response_body, None::<String>)
         }
         Err(send_error) => {
-            log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
-                "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
-                0, None, None, Some(&format!("failed to reach upstream model endpoint: {send_error}"))).await;
-            return (StatusCode::BAD_GATEWAY, format!("failed to reach upstream model endpoint: {send_error}")).into_response();
+            log_request_end(
+                &state.log,
+                &request_id,
+                start_instant.elapsed().as_millis() as u64,
+                "generation",
+                "POST",
+                "/v1/chat/completions",
+                &original_model,
+                &state.model_name,
+                0,
+                None,
+                None,
+                Some(&format!(
+                    "failed to reach upstream model endpoint: {send_error}"
+                )),
+            )
+            .await;
+            return (
+                StatusCode::BAD_GATEWAY,
+                format!("failed to reach upstream model endpoint: {send_error}"),
+            )
+                .into_response();
         }
     };
 
@@ -133,13 +193,24 @@ async fn chat_completions_non_streaming(
         json!(null)
     };
 
-    let response_body_value = serde_json::from_slice::<Value>(&response_body).unwrap_or_else(
-        |_| Value::String(String::from_utf8_lossy(&response_body).to_string()),
-    );
+    let response_body_value = serde_json::from_slice::<Value>(&response_body)
+        .unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&response_body).to_string()));
 
-    log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
-        "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
-        status, Some(&response_body_value), Some(&usage), error.as_ref().map(|x| x.as_str())).await;
+    log_request_end(
+        &state.log,
+        &request_id,
+        start_instant.elapsed().as_millis() as u64,
+        "generation",
+        "POST",
+        "/v1/chat/completions",
+        &original_model,
+        &state.model_name,
+        status,
+        Some(&response_body_value),
+        Some(&usage),
+        error.as_ref().map(|x| x.as_str()),
+    )
+    .await;
 
     let content_type = response_body_value
         .as_object()
@@ -150,7 +221,13 @@ async fn chat_completions_non_streaming(
         .status(StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
         .header(header::CONTENT_TYPE, content_type)
         .body(Body::from(response_body))
-        .unwrap_or_else(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("failed to build proxy response: {error}")).into_response())
+        .unwrap_or_else(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to build proxy response: {error}"),
+            )
+                .into_response()
+        })
 }
 
 /// Handle streaming POST /v1/chat/completions.
@@ -161,15 +238,36 @@ pub async fn chat_completions_streaming(
 ) -> Response {
     if !is_authorized(&headers, &state.api_key) {
         let request_id = generate_request_id();
-        log_request_end(&state.log, &request_id, 0, "generation", "POST", "/v1/chat/completions",
-            "", "", 401, None, None, Some("unauthorized")).await;
+        log_request_end(
+            &state.log,
+            &request_id,
+            0,
+            "generation",
+            "POST",
+            "/v1/chat/completions",
+            "",
+            "",
+            401,
+            None,
+            None,
+            Some("unauthorized"),
+        )
+        .await;
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
     let mut payload = match serde_json::from_slice::<Value>(&body) {
         Ok(Value::Object(payload)) => payload,
-        Ok(_) => return (StatusCode::BAD_REQUEST, "request body must be a JSON object").into_response(),
-        Err(_) => return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response(),
+        Ok(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "request body must be a JSON object",
+            )
+                .into_response()
+        }
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "request body must be valid JSON").into_response()
+        }
     };
 
     let original_model = payload
@@ -212,10 +310,28 @@ pub async fn chat_completions_streaming(
     let response = match request.send().await {
         Ok(response) => response,
         Err(send_error) => {
-            log_request_end(&state.log, &request_id, start_instant.elapsed().as_millis() as u64,
-                "generation", "POST", "/v1/chat/completions", &original_model, &state.model_name,
-                0, None, None, Some(&format!("failed to reach upstream model endpoint: {send_error}"))).await;
-            return (StatusCode::BAD_GATEWAY, format!("failed to reach upstream model endpoint: {send_error}")).into_response();
+            log_request_end(
+                &state.log,
+                &request_id,
+                start_instant.elapsed().as_millis() as u64,
+                "generation",
+                "POST",
+                "/v1/chat/completions",
+                &original_model,
+                &state.model_name,
+                0,
+                None,
+                None,
+                Some(&format!(
+                    "failed to reach upstream model endpoint: {send_error}"
+                )),
+            )
+            .await;
+            return (
+                StatusCode::BAD_GATEWAY,
+                format!("failed to reach upstream model endpoint: {send_error}"),
+            )
+                .into_response();
         }
     };
 
@@ -238,15 +354,33 @@ async fn auth_failure_response(
     method: &str,
     path: &str,
 ) -> Response {
-    log_record(&state.log, &json!({
-        "record_type": "request_start",
-        "request_id": request_id,
-        "started_at": utc_now(),
-        "kind": kind,
-        "method": method,
-        "path": path,
-    })).await;
-    log_request_end(&state.log, request_id, 0, kind, method, path, "", "", 401, None, None, Some("unauthorized")).await;
+    log_record(
+        &state.log,
+        &json!({
+            "record_type": "request_start",
+            "request_id": request_id,
+            "started_at": utc_now(),
+            "kind": kind,
+            "method": method,
+            "path": path,
+        }),
+    )
+    .await;
+    log_request_end(
+        &state.log,
+        request_id,
+        0,
+        kind,
+        method,
+        path,
+        "",
+        "",
+        401,
+        None,
+        None,
+        Some("unauthorized"),
+    )
+    .await;
     StatusCode::UNAUTHORIZED.into_response()
 }
 
@@ -277,11 +411,29 @@ async fn log_request_end(
         "upstream_model": upstream_model,
         "status_code": status_code,
     });
-    if let Some(body) = response_body { if let Some(obj) = record.as_object_mut() { obj.insert("response_body".to_owned(), body.clone()); } }
-    if let Some(u) = usage { if let Some(obj) = record.as_object_mut() { obj.insert("usage".to_owned(), u.clone()); }
-    } else { if let Some(obj) = record.as_object_mut() { obj.insert("usage".to_owned(), Value::Null); } }
-    if let Some(e) = error { if let Some(obj) = record.as_object_mut() { obj.insert("error".to_owned(), Value::String(e.to_owned())); }
-    } else { if let Some(obj) = record.as_object_mut() { obj.insert("error".to_owned(), Value::Null); } }
+    if let Some(body) = response_body {
+        if let Some(obj) = record.as_object_mut() {
+            obj.insert("response_body".to_owned(), body.clone());
+        }
+    }
+    if let Some(u) = usage {
+        if let Some(obj) = record.as_object_mut() {
+            obj.insert("usage".to_owned(), u.clone());
+        }
+    } else {
+        if let Some(obj) = record.as_object_mut() {
+            obj.insert("usage".to_owned(), Value::Null);
+        }
+    }
+    if let Some(e) = error {
+        if let Some(obj) = record.as_object_mut() {
+            obj.insert("error".to_owned(), Value::String(e.to_owned()));
+        }
+    } else {
+        if let Some(obj) = record.as_object_mut() {
+            obj.insert("error".to_owned(), Value::Null);
+        }
+    }
     log_record(log, &record).await;
 }
 
