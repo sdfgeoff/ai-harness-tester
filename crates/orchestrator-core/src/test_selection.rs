@@ -8,8 +8,10 @@ use std::{
 #[derive(Debug)]
 pub struct TestSelection {
     pub name: String,
+    pub test_dir: PathBuf,
     pub initial_state_path: PathBuf,
     pub prompt_path: PathBuf,
+    pub evaluator_dockerfile_path: PathBuf,
     pub initial_state_sha256: String,
     pub prompt_sha256: String,
 }
@@ -39,13 +41,27 @@ pub fn load_test_selection(name: &str) -> Result<TestSelection, String> {
         ));
     }
 
+    let evaluator_dockerfile = test_dir.join("evaluate.Dockerfile");
+    if !evaluator_dockerfile.is_file() {
+        return Err(format!(
+            "test '{name}' is missing required file {}",
+            evaluator_dockerfile.display()
+        ));
+    }
+
     Ok(TestSelection {
         name: name.to_owned(),
+        test_dir: test_dir.clone(),
         initial_state_path: initial_state.clone(),
         prompt_path: prompt.clone(),
+        evaluator_dockerfile_path: evaluator_dockerfile,
         initial_state_sha256: sha256_file(&initial_state)?,
         prompt_sha256: sha256_file(&prompt)?,
     })
+}
+
+pub fn evaluator_image_tag(test_name: &str) -> String {
+    format!("harness-test-evaluator/{test_name}:latest")
 }
 
 // ── Temp prompt ─────────────────────────────────────────────────────────────
@@ -217,4 +233,34 @@ fn sha256_file(path: &Path) -> Result<String, String> {
     }
 
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn evaluator_image_tag_uses_test_name() {
+        assert_eq!(
+            evaluator_image_tag("smoke"),
+            "harness-test-evaluator/smoke:latest"
+        );
+    }
+
+    #[test]
+    fn load_test_selection_requires_evaluator_dockerfile() {
+        let temp_dir = tempdir().expect("create temp dir");
+        let original_dir = std::env::current_dir().expect("current dir");
+        let tests_dir = temp_dir.path().join("tests").join("sample");
+        fs::create_dir_all(&tests_dir).expect("create test dir");
+        fs::write(tests_dir.join("PROMPT.md"), "# prompt\n").expect("write prompt");
+        File::create(tests_dir.join("initial_state.zip")).expect("write zip");
+
+        std::env::set_current_dir(temp_dir.path()).expect("set current dir");
+        let error = load_test_selection("sample").expect_err("selection should fail");
+        std::env::set_current_dir(original_dir).expect("restore current dir");
+
+        assert!(error.contains("evaluate.Dockerfile"));
+    }
 }

@@ -1,15 +1,12 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    fs::File,
-    path::Path,
-    process::Command,
-};
+use std::{collections::BTreeMap, fs::File, path::Path, process::Command};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default = "default_timeout")]
     pub timeout_seconds: u64,
+    #[serde(default = "default_evaluation_timeout")]
+    pub evaluation_timeout_seconds: u64,
     #[serde(default = "default_results_dir")]
     pub results_dir: String,
     pub models: BTreeMap<String, ModelProfile>,
@@ -18,6 +15,10 @@ pub struct Config {
 
 fn default_timeout() -> u64 {
     1800
+}
+
+fn default_evaluation_timeout() -> u64 {
+    300
 }
 
 fn default_results_dir() -> String {
@@ -57,6 +58,7 @@ pub fn load_config(path: &Path) -> Result<Config, String> {
 #[derive(Debug, Serialize)]
 struct RedactedConfig<'a> {
     timeout_seconds: u64,
+    evaluation_timeout_seconds: u64,
     results_dir: &'a str,
     models: BTreeMap<&'a str, RedactedModelProfile<'a>>,
     harnesses: &'a BTreeMap<String, HarnessProfile>,
@@ -86,6 +88,7 @@ pub fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Resu
         .collect();
     let redacted = RedactedConfig {
         timeout_seconds: config.timeout_seconds,
+        evaluation_timeout_seconds: config.evaluation_timeout_seconds,
         results_dir: &config.results_dir,
         models,
         harnesses: &config.harnesses,
@@ -108,7 +111,11 @@ pub fn write_redacted_config_snapshot(batch_dir: &Path, config: &Config) -> Resu
 // ── Preflight helpers ───────────────────────────────────────────────────────
 
 pub fn inspect_docker_image(harness_name: &str, image: &str) -> Result<String, String> {
-    tracing::info!(harness = harness_name, image = image, "inspecting Docker image");
+    tracing::info!(
+        harness = harness_name,
+        image = image,
+        "inspecting Docker image"
+    );
     let output = Command::new("docker")
         .arg("image")
         .arg("inspect")
@@ -166,4 +173,22 @@ pub fn model_response_contains(response: &serde_json::Value, model_name: &str) -
                 model.get("id").and_then(serde_json::Value::as_str) == Some(model_name)
             })
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_defaults_evaluation_timeout() {
+        let config: Config = serde_json::from_value(serde_json::json!({
+            "models": {},
+            "harnesses": {}
+        }))
+        .expect("parse config");
+
+        assert_eq!(config.timeout_seconds, 1800);
+        assert_eq!(config.evaluation_timeout_seconds, 300);
+        assert_eq!(config.results_dir, "results");
+    }
 }

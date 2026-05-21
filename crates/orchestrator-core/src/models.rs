@@ -62,6 +62,13 @@ pub struct ResolvedModel {
 }
 
 #[derive(Debug, Serialize)]
+pub struct ResolvedEvaluator {
+    pub image: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct RunArtifacts {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub working_dir: Option<String>,
@@ -257,6 +264,47 @@ pub fn write_results(run_dir: &Path, result: &RunResult) -> Result<(), String> {
         .map_err(|error| format!("failed to write results file {}: {error}", path.display()))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvaluationStatus {
+    Skipped,
+    Completed,
+    Failed,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EvaluationResult {
+    pub status: EvaluationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evaluator: Option<ResolvedEvaluator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<RunError>,
+}
+
+pub fn write_evaluation(run_dir: &Path, evaluation: &EvaluationResult) -> Result<(), String> {
+    let path = run_dir.join("evaluation.json");
+    let file = File::create(&path).map_err(|error| {
+        format!(
+            "failed to create evaluation file {}: {error}",
+            path.display()
+        )
+    })?;
+    serde_json::to_writer_pretty(file, evaluation).map_err(|error| {
+        format!(
+            "failed to write evaluation file {}: {error}",
+            path.display()
+        )
+    })
+}
+
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -264,6 +312,97 @@ mod tests {
     use super::*;
     use std::io::Write;
     use tempfile::NamedTempFile;
+
+    #[test]
+    fn serializes_skipped_evaluation() {
+        let evaluation = EvaluationResult {
+            status: EvaluationStatus::Skipped,
+            reason: Some("run_not_completed".to_owned()),
+            started_at: None,
+            finished_at: None,
+            duration_ms: None,
+            evaluator: None,
+            error: None,
+        };
+
+        let value = serde_json::to_value(&evaluation).expect("serialize evaluation");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "status": "skipped",
+                "reason": "run_not_completed"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_completed_evaluation_without_score() {
+        let evaluation = EvaluationResult {
+            status: EvaluationStatus::Completed,
+            reason: None,
+            started_at: Some("2026-05-21T00:00:00Z".to_owned()),
+            finished_at: Some("2026-05-21T00:00:01Z".to_owned()),
+            duration_ms: Some(1000),
+            evaluator: Some(ResolvedEvaluator {
+                image: "harness-test-evaluator/smoke:latest".to_owned(),
+                image_id: Some("sha256:123".to_owned()),
+            }),
+            error: None,
+        };
+
+        let value = serde_json::to_value(&evaluation).expect("serialize evaluation");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "status": "completed",
+                "started_at": "2026-05-21T00:00:00Z",
+                "finished_at": "2026-05-21T00:00:01Z",
+                "duration_ms": 1000,
+                "evaluator": {
+                    "image": "harness-test-evaluator/smoke:latest",
+                    "image_id": "sha256:123"
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_failed_evaluation() {
+        let evaluation = EvaluationResult {
+            status: EvaluationStatus::Failed,
+            reason: None,
+            started_at: Some("2026-05-21T00:00:00Z".to_owned()),
+            finished_at: Some("2026-05-21T00:05:00Z".to_owned()),
+            duration_ms: Some(300000),
+            evaluator: Some(ResolvedEvaluator {
+                image: "harness-test-evaluator/smoke:latest".to_owned(),
+                image_id: Some("sha256:123".to_owned()),
+            }),
+            error: Some(RunError {
+                kind: "timed_out".to_owned(),
+                message: "Evaluation exceeded timeout of 300 seconds".to_owned(),
+            }),
+        };
+
+        let value = serde_json::to_value(&evaluation).expect("serialize evaluation");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "status": "failed",
+                "started_at": "2026-05-21T00:00:00Z",
+                "finished_at": "2026-05-21T00:05:00Z",
+                "duration_ms": 300000,
+                "evaluator": {
+                    "image": "harness-test-evaluator/smoke:latest",
+                    "image_id": "sha256:123"
+                },
+                "error": {
+                    "kind": "timed_out",
+                    "message": "Evaluation exceeded timeout of 300 seconds"
+                }
+            })
+        );
+    }
 
     #[test]
     fn aggregates_complete_usage() {
