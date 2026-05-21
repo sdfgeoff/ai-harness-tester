@@ -1,10 +1,4 @@
-use std::{
-    fs::{self, File},
-    path::PathBuf,
-    process::{Command, Stdio},
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::{fs, path::PathBuf, time::Instant};
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 
@@ -12,14 +6,13 @@ use orchestrator_core::{
     config::{Config, HarnessProfile, ModelProfile},
     models::{
         ResolvedHarness, ResolvedModel, RunArtifacts, RunError, RunExecution, RunInputs,
-        RunMetrics, RunResult, RunResolved, RunSelection, RunStatus,
+        RunMetrics, RunResolved, RunResult, RunSelection, RunStatus,
     },
-    output::{copy_output, join_log_thread},
     test_selection::{
-        copy_prompt_artifact, load_test_selection, prepare_temp_prompt, remove_temp_prompt,
-        extract_initial_state,
+        copy_prompt_artifact, extract_initial_state, load_test_selection, prepare_temp_prompt,
+        remove_temp_prompt,
     },
-    util::{format_timestamp, duration_ms, run_id, run_dir_name},
+    util::{duration_ms, format_timestamp, run_dir_name, run_id},
 };
 
 /// Intermediate state after successful setup, before harness execution.
@@ -79,16 +72,7 @@ pub fn execute_run(
         )
     })?;
 
-    // Harness log
     let harness_log_path = logs_dir.join("harness.log");
-    let harness_log = Arc::new(Mutex::new(File::create(&harness_log_path).map_err(
-        |error| {
-            format!(
-                "failed to create harness log {}: {error}",
-                harness_log_path.display()
-            )
-        },
-    )?));
 
     // Setup phase: catch errors and write setup_failed results
     let setup = || -> Result<SetupResult, String> {
@@ -109,8 +93,8 @@ pub fn execute_run(
             .transpose()?;
 
         // Start proxy
-        let runtime = Runtime::new()
-            .map_err(|error| format!("failed to create async runtime: {error}"))?;
+        let runtime =
+            Runtime::new().map_err(|error| format!("failed to create async runtime: {error}"))?;
         let proxy_log_path = logs_dir.join("proxy.ndjson");
         let proxy = runtime.block_on(llm_proxy::start_proxy(llm_proxy::ProxyConfig {
             model_name: model.model_name.clone(),
@@ -200,59 +184,54 @@ pub fn execute_run(
         harness.image
     );
 
-    // Build and run Docker command
     let container_name = format!("harness-test-{run_id}");
-    let mut command = Command::new("docker");
-    command.arg("run").arg("--rm").arg("--name").arg(&container_name).arg("--network").arg("host");
+    let mut mounts = Vec::new();
+    let mut env = vec![
+        ("LLM_URL".to_owned(), proxy.base_url.clone()),
+        ("LLM_API_KEY".to_owned(), proxy.api_key.clone()),
+    ];
 
     if let Some(working_dir) = working_dir.as_ref() {
-        let mount_source = fs::canonicalize(working_dir).map_err(|error| {
-            format!(
-                "failed to canonicalize working directory {}: {error}",
-                working_dir.display()
-            )
-        })?;
-        command
-            .arg("--volume")
-            .arg(format!("{}:/workdir", mount_source.display()))
-            .arg("--workdir")
-            .arg("/workdir")
-            .arg("--env")
-            .arg("WORKDIR=/workdir");
+        mounts.push(docker_runner::Mount {
+            source: working_dir.clone(),
+            target: "/workdir".to_owned(),
+            read_only: false,
+        });
+        env.push(("WORKDIR".to_owned(), "/workdir".to_owned()));
     }
-
-    command
-        .arg("--env")
-        .arg(format!("LLM_URL={}", proxy.base_url))
-        .arg("--env")
-        .arg(format!("LLM_API_KEY={}", proxy.api_key));
 
     if let Some(temp_prompt) = temp_prompt.as_ref() {
-        let mount_source = fs::canonicalize(&temp_prompt.path).map_err(|error| {
-            format!(
-                "failed to canonicalize temporary prompt {}: {error}",
-                temp_prompt.path.display()
-            )
-        })?;
-        command
-            .arg("--volume")
-            .arg(format!("{}:/prompt/PROMPT.md:ro", mount_source.display()))
-            .arg("--env")
-            .arg("INITIAL_PROMPT_FILE=/prompt/PROMPT.md");
+        mounts.push(docker_runner::Mount {
+            source: temp_prompt.path.clone(),
+            target: "/prompt/PROMPT.md".to_owned(),
+            read_only: true,
+        });
+        env.push((
+            "INITIAL_PROMPT_FILE".to_owned(),
+            "/prompt/PROMPT.md".to_owned(),
+        ));
     }
 
-    let mut child = match command
-        .arg(&harness.image)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Ok(child) => child,
+    let container_result = match docker_runner::run(&docker_runner::RunConfig {
+        container_name: container_name.clone(),
+        image: harness.image.clone(),
+        network: docker_runner::NetworkMode::Host,
+        mounts,
+        workdir: working_dir.as_ref().map(|_| "/workdir".to_owned()),
+        env,
+        log_path: harness_log_path.clone(),
+        console_prefix: Some(run_id.clone()),
+        timeout: std::time::Duration::from_secs(config.timeout_seconds),
+    }) {
+        Ok(result) => result,
         Err(error) => {
             runtime.block_on(proxy.shutdown())?;
             // Docker spawn failure is a setup failure
-            tracing::error!(run_id = %run_id, error = %error, "setup failed: docker spawn");
-            eprintln!("setup failed for run {}: failed to start docker: {}", run_id, error);
+            tracing::error!(run_id = %run_id, error = %error, "setup failed: docker runner");
+            eprintln!(
+                "setup failed for run {}: failed to start docker: {}",
+                run_id, error
+            );
             let duration = started.elapsed();
             let finished_at = OffsetDateTime::now_utc();
             let result = RunResult {
@@ -307,49 +286,6 @@ pub fn execute_run(
         }
     };
 
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| "failed to capture docker stdout".to_owned())?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| "failed to capture docker stderr".to_owned())?;
-
-    let stdout_thread = copy_output(stdout, Arc::clone(&harness_log), run_id.clone());
-    let stderr_thread = copy_output(stderr, Arc::clone(&harness_log), run_id.clone());
-
-    // Wait for container with timeout
-    let timeout_instant = std::time::Instant::now() + std::time::Duration::from_secs(config.timeout_seconds);
-    let (status, timed_out) = loop {
-        match child.try_wait() {
-            Ok(Some(s)) => break (s, false),
-            Ok(None) => {
-                if std::time::Instant::now() >= timeout_instant {
-                    tracing::warn!(run_id = %run_id, timeout_seconds = config.timeout_seconds, "run exceeded timeout, killing container");
-                    eprintln!(
-                        "run {} exceeded timeout of {} seconds, killing container",
-                        run_id, config.timeout_seconds
-                    );
-                    // Kill the container
-                    let _ = Command::new("docker")
-                        .arg("kill")
-                        .arg(format!("harness-test-{run_id}"))
-                        .output();
-                    let _ = child.kill();
-                    break (child.wait().unwrap_or_default(), true);
-                }
-                std::thread::sleep(std::time::Duration::from_millis(500));
-            }
-            Err(error) => {
-                return Err(format!("failed to check docker status: {error}"));
-            }
-        }
-    };
-
-    join_log_thread(stdout_thread)?;
-    join_log_thread(stderr_thread)?;
-
     // Post-run cleanup
     let prompt_artifact = temp_prompt
         .as_ref()
@@ -366,26 +302,27 @@ pub fn execute_run(
     // Build and write results
     let duration = started.elapsed();
     let finished_at = OffsetDateTime::now_utc();
-    let (run_status, harness_exit_code, error) = if timed_out {
-        (RunStatus::TimedOut, None, Some(RunError {
-            kind: "timeout".to_owned(),
-            message: format!("Run exceeded timeout of {} seconds", config.timeout_seconds),
-        }))
-    } else {
-        let harness_exit_code = status.code();
-        let run_status = match harness_exit_code {
-            Some(0) => RunStatus::Completed,
-            _ => RunStatus::Failed,
-        };
-        let error = if run_status == RunStatus::Failed {
+    let (run_status, harness_exit_code, error) = match container_result.status {
+        docker_runner::ContainerStatus::TimedOut => (
+            RunStatus::TimedOut,
+            None,
             Some(RunError {
-                kind: "failed".to_owned(),
-                message: format!("Harness exited with code {:?}", harness_exit_code),
-            })
-        } else {
-            None
-        };
-        (run_status, harness_exit_code, error)
+                kind: "timeout".to_owned(),
+                message: format!("Run exceeded timeout of {} seconds", config.timeout_seconds),
+            }),
+        ),
+        docker_runner::ContainerStatus::Completed => (RunStatus::Completed, Some(0), None),
+        docker_runner::ContainerStatus::Failed => {
+            let harness_exit_code = container_result.exit_code;
+            (
+                RunStatus::Failed,
+                harness_exit_code,
+                Some(RunError {
+                    kind: "failed".to_owned(),
+                    message: format!("Harness exited with code {:?}", harness_exit_code),
+                }),
+            )
+        }
     };
 
     let result = RunResult {

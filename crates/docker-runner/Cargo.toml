@@ -6,5 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["process", "time"] }
 tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
