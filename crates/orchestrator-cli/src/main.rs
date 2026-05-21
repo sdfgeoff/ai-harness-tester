@@ -245,6 +245,7 @@ fn execute_batch(
         &PathBuf::from(&config.results_dir).join(&batch_id),
         &config,
     )?;
+    orchestrator_core::models::write_results_index(&PathBuf::from(&config.results_dir))?;
 
     if failed_runs > 0 || failed_evaluations > 0 {
         Err(format_batch_failure(failed_runs, failed_evaluations))

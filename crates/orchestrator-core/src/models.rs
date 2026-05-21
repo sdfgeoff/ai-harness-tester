@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::{fs::File, path::Path};
+use std::{fs::File, path::{Path, PathBuf}};
 
 // ── Run result models ───────────────────────────────────────────────────────
 
@@ -238,12 +238,94 @@ pub struct BatchRunReference {
     pub evaluation_path: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ResultsIndex {
+    pub batches: Vec<ResultsIndexBatch>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResultsIndexBatch {
+    pub batch_id: String,
+    pub summary_path: String,
+}
+
 pub fn write_batch_summary(batch_dir: &Path, summary: &BatchSummary) -> Result<(), String> {
     let path = batch_dir.join("summary.json");
     let file = File::create(&path)
         .map_err(|error| format!("failed to create summary file {}: {error}", path.display()))?;
     serde_json::to_writer_pretty(file, summary)
         .map_err(|error| format!("failed to write summary file {}: {error}", path.display()))
+}
+
+pub fn write_results_index(results_dir: &Path) -> Result<(), String> {
+    let index = build_results_index(results_dir)?;
+    let path = results_dir.join("index.json");
+    let file = File::create(&path)
+        .map_err(|error| format!("failed to create results index {}: {error}", path.display()))?;
+    serde_json::to_writer_pretty(file, &index)
+        .map_err(|error| format!("failed to write results index {}: {error}", path.display()))
+}
+
+fn build_results_index(results_dir: &Path) -> Result<ResultsIndex, String> {
+    let mut batches = Vec::new();
+
+    for entry in std::fs::read_dir(results_dir)
+        .map_err(|error| format!("failed to read results directory {}: {error}", results_dir.display()))?
+    {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let batch_id = match entry.file_name().into_string() {
+            Ok(name) => name,
+            Err(_) => continue,
+        };
+
+        let summary_path = path.join("summary.json");
+        if !summary_path.is_file() {
+            continue;
+        }
+
+        batches.push(ResultsIndexBatch {
+            batch_id: batch_id.clone(),
+            summary_path: relative_summary_path(results_dir, &batch_id, &summary_path)?,
+        });
+    }
+
+    batches.sort_by(|left, right| right.batch_id.cmp(&left.batch_id));
+
+    Ok(ResultsIndex { batches })
+}
+
+fn relative_summary_path(
+    results_dir: &Path,
+    batch_id: &str,
+    summary_path: &Path,
+) -> Result<String, String> {
+    let results_dir_name = results_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            format!(
+                "results directory {} must have a valid final path segment",
+                results_dir.display()
+            )
+        })?;
+
+    let relative_path: PathBuf = [results_dir_name, batch_id, "summary.json"].iter().collect();
+    if summary_path != results_dir.join(batch_id).join("summary.json") {
+        return Err(format!(
+            "summary path {} did not match expected location for batch {batch_id}",
+            summary_path.display()
+        ));
+    }
+
+    Ok(relative_path.to_string_lossy().into_owned())
 }
 
 // ── Run status ──────────────────────────────────────────────────────────────
@@ -323,7 +405,7 @@ pub fn write_evaluation(run_dir: &Path, evaluation: &EvaluationResult) -> Result
 mod tests {
     use super::*;
     use std::io::Write;
-    use tempfile::NamedTempFile;
+    use tempfile::{NamedTempFile, TempDir};
 
     #[test]
     fn serializes_skipped_evaluation() {
@@ -481,5 +563,48 @@ mod tests {
         assert_eq!(metrics.input_tokens, Some(0));
         assert_eq!(metrics.output_tokens, Some(0));
         assert_eq!(metrics.total_tokens, Some(0));
+    }
+
+    #[test]
+    fn writes_results_index_newest_first() {
+        let temp_dir = TempDir::new().expect("create temp dir");
+        let results_dir = temp_dir.path().join("results");
+        std::fs::create_dir_all(results_dir.join("20260520T010153Z")).expect("create batch dir");
+        std::fs::create_dir_all(results_dir.join("20260521T041942Z")).expect("create batch dir");
+        std::fs::write(
+            results_dir.join("20260520T010153Z").join("summary.json"),
+            "{}",
+        )
+        .expect("write summary");
+        std::fs::write(
+            results_dir.join("20260521T041942Z").join("summary.json"),
+            "{}",
+        )
+        .expect("write summary");
+        std::fs::write(results_dir.join("junk.txt"), "ignore").expect("write junk");
+        std::fs::create_dir_all(results_dir.join("missing-summary")).expect("create junk dir");
+
+        write_results_index(&results_dir).expect("write results index");
+
+        let index: Value = serde_json::from_str(
+            &std::fs::read_to_string(results_dir.join("index.json")).expect("read index"),
+        )
+        .expect("parse index");
+
+        assert_eq!(
+            index,
+            serde_json::json!({
+                "batches": [
+                    {
+                        "batch_id": "20260521T041942Z",
+                        "summary_path": "results/20260521T041942Z/summary.json"
+                    },
+                    {
+                        "batch_id": "20260520T010153Z",
+                        "summary_path": "results/20260520T010153Z/summary.json"
+                    }
+                ]
+            })
+        );
     }
 }
