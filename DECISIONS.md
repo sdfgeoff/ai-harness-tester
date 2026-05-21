@@ -268,6 +268,8 @@ Streaming events are stored as separate records:
 
 Stream event `data` is stored as raw SSE `data:` text only in v0, not parsed JSON.
 
+The interface may derive a best-effort reconstructed stream view from `stream_event.data_raw`, but that reconstruction is not persisted back into artifacts. `logs/proxy.ndjson` remains the authoritative record.
+
 ## Container Write Boundary
 
 - The harness container may write anywhere inside its disposable filesystem.

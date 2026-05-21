@@ -213,6 +213,8 @@ npm run preview
 
 The Vite config serves `../results` at `/results/...` in both dev and preview, so the app can fetch live artifacts without a separate backend. For a generic static server, serve the repository root so both `interface/dist/` and `results/` are available from the same origin.
 
+The run detail page includes an explicit `proxy.ndjson` viewer. It loads the log on demand, groups records by `request_id`, and shows request timing, status, usage, raw payloads, and streaming events.
+
 ## Proxy
 
 The `llm-proxy` crate provides the in-process per-run proxy. It starts on a random local port, generates a per-run API key, requires bearer auth, serves `GET /v1/models` with a minimal response containing only the selected model, and forwards `POST /v1/responses` requests upstream. For `/v1/responses`, the proxy rewrites `model` to the selected model profile's `model_name` and preserves other request fields. Both streaming (`stream: true`) and non-streaming responses are supported.
@@ -287,6 +289,8 @@ Each run writes an append-only NDJSON log at `logs/proxy.ndjson`. Every proxied 
 - `event` stores the SSE event name when present.
 - The `request_end` for streaming requests has `response_body: null` and `usage` extracted from stream events when available.
 - Usage extracted from streaming responses feeds into the same metrics aggregation as non-streaming responses.
+
+The interface reconstructs a best-effort readable stream view from `stream_event.data_raw`, but `proxy.ndjson` remains the source of truth. Different upstream APIs emit different SSE payload shapes, so the viewer may recover text deltas, reasoning deltas, or tool-call argument fragments when they are present, but it does not guarantee a canonical final assistant message.
 
 ### Metrics
 
