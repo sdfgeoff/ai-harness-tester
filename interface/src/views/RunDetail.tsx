@@ -90,20 +90,28 @@ export function RunDetail({ batchId, runReference, results, evaluation }: RunDet
             path={resolveRunArtifactPath(batchId, runReference.results_path, results.artifacts.proxy_log)}
           />
           {results.artifacts.prompt ? (
-            <ArtifactLink
-              label="PROMPT.md"
-              path={resolveRunArtifactPath(batchId, runReference.results_path, results.artifacts.prompt)}
-            />
+          <ArtifactLink
+            label="PROMPT.md"
+            path={resolveRunArtifactPath(batchId, runReference.results_path, results.artifacts.prompt)}
+          />
           ) : null}
           {results.artifacts.working_dir ? (
             <ArtifactLink
-              label="working_dir/"
-              path={resolveRunArtifactPath(batchId, runReference.results_path, results.artifacts.working_dir)}
+              label="working_dir"
+              path={resolveRunArtifactPath(
+                batchId,
+                runReference.results_path,
+                results.artifacts.working_dir,
+              )}
             />
           ) : null}
           <ArtifactLink
-            label="evaluation_output/"
-            path={resolveRunArtifactPath(batchId, runReference.results_path, "evaluation_output")}
+            label="evaluation_output/evaluation.json"
+            path={resolveRunArtifactPath(
+              batchId,
+              runReference.results_path,
+              "evaluation_output/evaluation.json",
+            )}
           />
         </ul>
       </section>
