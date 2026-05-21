@@ -20,6 +20,7 @@ Expected final artifact shape:
 
 ```text
 results/
+  index.json
   <batch_id>/
     summary.json
     config.json
@@ -74,6 +75,8 @@ cargo run -p orchestrator-cli -- run-image --harnesses smoke --models smoke-loca
 ```
 
 Each run writes both execution and evaluation artifacts. `results.json` records execution outcome and run metrics. `evaluation.json` records evaluator outcome and, when available, the scored result. Harness stdout and stderr are captured together in `logs/harness.log`, evaluator stdout and stderr are captured in `logs/evaluator.log`, and both are streamed live to the console with a run-identifying prefix.
+
+The repo also includes a frontend results browser under `interface/`. It is a Vite + React + TypeScript app that reads the artifact files directly.
 
 When `--tests <name>` is provided, the CLI validates `tests/<name>/initial_state.zip`, `tests/<name>/PROMPT.md`, and `tests/<name>/evaluate.Dockerfile`, then records SHA-256 hashes for the initial state and prompt in `results.json`. The `--tests`, `--harnesses`, and `--models` flags accept comma-separated values.
 
@@ -133,7 +136,22 @@ The selected model profile is recorded in `results.json` with non-secret resolve
 
 Each CLI invocation creates a UTC batch directory under `results/`. Run IDs include the batch timestamp, harness, model, test, and a short suffix. A redacted copy of the launch config is written to `results/<batch_id>/config.json`.
 
-After all selected runs finish, `summary.json` is written at the batch root. It contains batch timing, the config path, and run references only:
+After all selected runs finish, `summary.json` is written at the batch root. The orchestrator also rewrites `results/index.json` as a newest-first index of batch summaries. It scans the full `results/` tree each time, so older batch directories are picked up automatically the next time any batch completes.
+
+`results/index.json`:
+
+```json
+{
+  "batches": [
+    {
+      "batch_id": "20260519T020329Z",
+      "summary_path": "results/20260519T020329Z/summary.json"
+    }
+  ]
+}
+```
+
+Batch `summary.json` contains batch timing, the config path, and run references only:
 
 ```json
 {
@@ -162,6 +180,38 @@ Each run writes `evaluation.json` beside `results.json`.
 - If the evaluator container fails, times out, omits `/output/evaluation.json`, or writes invalid JSON/schema, `evaluation.json` is written with `status: "failed"` and a structured `error`.
 
 The full evaluator output directory is preserved as `evaluation_output/` at the run root.
+
+## Interface
+
+Install dependencies:
+
+```sh
+cd interface
+npm install
+```
+
+Run the browser in development mode:
+
+```sh
+cd interface
+npm run dev
+```
+
+Build the browser:
+
+```sh
+cd interface
+npm run build
+```
+
+Preview the built app:
+
+```sh
+cd interface
+npm run preview
+```
+
+The Vite config serves `../results` at `/results/...` in both dev and preview, so the app can fetch live artifacts without a separate backend. For a generic static server, serve the repository root so both `interface/dist/` and `results/` are available from the same origin.
 
 ## Proxy
 
