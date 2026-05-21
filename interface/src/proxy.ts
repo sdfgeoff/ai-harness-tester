@@ -255,12 +255,12 @@ function deriveFragments(record: ProxyStreamEventRecord): ProxyDerivedFragment[]
   try {
     parsed = JSON.parse(record.data_raw);
   } catch {
-    return [{ kind: "unknown", value: record.data_raw }];
+    return [];
   }
 
   const fragments: ProxyDerivedFragment[] = [];
   collectFragments(parsed, fragments);
-  return fragments.length > 0 ? fragments : [{ kind: "unknown", value: record.data_raw }];
+  return fragments;
 }
 
 function collectFragments(value: unknown, fragments: ProxyDerivedFragment[]) {
