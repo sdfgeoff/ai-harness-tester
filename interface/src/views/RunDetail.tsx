@@ -1,3 +1,4 @@
+import { ProxyLogViewer } from "./ProxyLogViewer";
 import { formatDuration, formatScore, formatTimestamp } from "../format";
 import { resolveBatchArtifactPath, resolveRunArtifactPath } from "../data";
 import type { RunEvaluation, RunReference, RunResults } from "../types";
@@ -115,6 +116,12 @@ export function RunDetail({ batchId, runReference, results, evaluation }: RunDet
           />
         </ul>
       </section>
+
+      <ProxyLogViewer
+        batchId={batchId}
+        resultsPath={runReference.results_path}
+        proxyLogPath={results.artifacts.proxy_log}
+      />
     </section>
   );
 }
