@@ -1,6 +1,6 @@
-FROM debian:bookworm-slim
+FROM python:3.12-slim
 
-COPY evaluate.sh /usr/local/bin/evaluate
+COPY evaluate.py /usr/local/bin/evaluate
 RUN chmod +x /usr/local/bin/evaluate
 
 ENTRYPOINT ["/usr/local/bin/evaluate"]
