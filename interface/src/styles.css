@@ -238,12 +238,22 @@ code {
 
 .issue-list,
 .stream-event-list,
-.proxy-session-list {
+.proxy-session-list,
+.tool-call-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 12px;
+}
+
+.tool-call-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  background: #111827;
 }
 
 .issue-list li,

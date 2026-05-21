@@ -70,6 +70,15 @@ export interface ProxyStreamReconstruction {
   combinedText: string;
   combinedReasoning: string;
   combinedToolArguments: string;
+  toolCalls: ProxyToolCall[];
+}
+
+export interface ProxyToolCall {
+  key: string;
+  id?: string;
+  index?: number;
+  name?: string;
+  argumentsText: string;
 }
 
 export interface ProxyRequestSession {
@@ -158,6 +167,7 @@ function createEmptySession(requestId: string): ProxyRequestSession {
       combinedText: "",
       combinedReasoning: "",
       combinedToolArguments: "",
+      toolCalls: [],
     },
   };
 }
@@ -228,6 +238,7 @@ function isStreamingRequestBody(requestBody: JsonValue | undefined): boolean {
 
 function reconstructStream(streamEvents: ProxyStreamEventRecord[]): ProxyStreamReconstruction {
   const fragments = streamEvents.flatMap(deriveFragments);
+  const toolCalls = reconstructToolCalls(streamEvents);
 
   return {
     fragments,
@@ -243,7 +254,31 @@ function reconstructStream(streamEvents: ProxyStreamEventRecord[]): ProxyStreamR
       .filter((fragment) => fragment.kind === "tool_arguments")
       .map((fragment) => fragment.value)
       .join(""),
+    toolCalls,
   };
+}
+
+function reconstructToolCalls(streamEvents: ProxyStreamEventRecord[]): ProxyToolCall[] {
+  const calls = new Map<string, ProxyToolCall>();
+  const anthropicBlockKeys = new Map<number, string>();
+
+  for (const event of streamEvents) {
+    if (!event.data_raw) {
+      continue;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(event.data_raw);
+    } catch {
+      continue;
+    }
+
+    collectOpenAiToolCalls(parsed, calls);
+    collectAnthropicToolCalls(parsed, calls, anthropicBlockKeys);
+  }
+
+  return Array.from(calls.values()).sort(compareToolCalls);
 }
 
 function deriveFragments(record: ProxyStreamEventRecord): ProxyDerivedFragment[] {
@@ -302,4 +337,124 @@ function collectFragments(value: unknown, fragments: ProxyDerivedFragment[]) {
 
 function looksLikeToolNameContainer(record: Record<string, unknown>): boolean {
   return "arguments" in record || "tool_calls" in record || "function" in record;
+}
+
+function collectOpenAiToolCalls(value: unknown, calls: Map<string, ProxyToolCall>) {
+  if (typeof value !== "object" || value === null) {
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  const choices = Array.isArray(record.choices) ? record.choices : [];
+  for (const choice of choices) {
+    if (typeof choice !== "object" || choice === null) {
+      continue;
+    }
+    const delta = (choice as Record<string, unknown>).delta;
+    if (typeof delta !== "object" || delta === null) {
+      continue;
+    }
+    const toolCalls = Array.isArray((delta as Record<string, unknown>).tool_calls)
+      ? ((delta as Record<string, unknown>).tool_calls as unknown[])
+      : [];
+
+    for (const entry of toolCalls) {
+      if (typeof entry !== "object" || entry === null) {
+        continue;
+      }
+
+      const toolCall = entry as Record<string, unknown>;
+      const index = typeof toolCall.index === "number" ? toolCall.index : undefined;
+      const id = typeof toolCall.id === "string" ? toolCall.id : undefined;
+      const key = id ?? `openai:${index ?? calls.size}`;
+      const call = ensureToolCall(calls, key, index, id);
+
+      const fn = toolCall.function;
+      if (typeof fn === "object" && fn !== null) {
+        const fnRecord = fn as Record<string, unknown>;
+        if (typeof fnRecord.name === "string") {
+          call.name = fnRecord.name;
+        }
+        if (typeof fnRecord.arguments === "string") {
+          call.argumentsText += fnRecord.arguments;
+        }
+      }
+    }
+  }
+}
+
+function collectAnthropicToolCalls(
+  value: unknown,
+  calls: Map<string, ProxyToolCall>,
+  anthropicBlockKeys: Map<number, string>,
+) {
+  if (typeof value !== "object" || value === null) {
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  const blockIndex = typeof record.index === "number" ? record.index : undefined;
+
+  if (record.type === "content_block_start") {
+    const block = record.content_block;
+    if (typeof block === "object" && block !== null) {
+      const blockRecord = block as Record<string, unknown>;
+      if (blockRecord.type === "tool_use") {
+        const id = typeof blockRecord.id === "string" ? blockRecord.id : undefined;
+        const key = id ?? `anthropic:${blockIndex ?? calls.size}`;
+        const call = ensureToolCall(calls, key, blockIndex, id);
+        if (blockIndex !== undefined) {
+          anthropicBlockKeys.set(blockIndex, key);
+        }
+        if (typeof blockRecord.name === "string") {
+          call.name = blockRecord.name;
+        }
+      }
+    }
+  }
+
+  if (record.type === "content_block_delta") {
+    const delta = record.delta;
+    if (typeof delta === "object" && delta !== null) {
+      const deltaRecord = delta as Record<string, unknown>;
+      if (deltaRecord.type === "input_json_delta" && typeof deltaRecord.partial_json === "string") {
+        const key =
+          (blockIndex !== undefined ? anthropicBlockKeys.get(blockIndex) : undefined) ??
+          `anthropic:${blockIndex ?? calls.size}`;
+        const call = ensureToolCall(calls, key, blockIndex, undefined);
+        call.argumentsText += deltaRecord.partial_json;
+      }
+    }
+  }
+}
+
+function ensureToolCall(
+  calls: Map<string, ProxyToolCall>,
+  key: string,
+  index: number | undefined,
+  id: string | undefined,
+): ProxyToolCall {
+  const existing = calls.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const created: ProxyToolCall = {
+    key,
+    id,
+    index,
+    name: undefined,
+    argumentsText: "",
+  };
+  calls.set(key, created);
+  return created;
+}
+
+function compareToolCalls(left: ProxyToolCall, right: ProxyToolCall): number {
+  const leftIndex = left.index ?? Number.MAX_SAFE_INTEGER;
+  const rightIndex = right.index ?? Number.MAX_SAFE_INTEGER;
+  if (leftIndex !== rightIndex) {
+    return leftIndex - rightIndex;
+  }
+  return left.key.localeCompare(right.key);
 }

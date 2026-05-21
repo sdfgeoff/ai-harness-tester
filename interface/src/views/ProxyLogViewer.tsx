@@ -5,6 +5,7 @@ import {
   sessionError,
   type ParsedProxyLog,
   type ProxyRequestSession,
+  type ProxyToolCall,
   type ProxyUsage,
 } from "../proxy";
 
@@ -143,10 +144,14 @@ function ProxySessionCard({ session }: { session: ProxyRequestSession }) {
           </section>
         ) : null}
 
-        {session.reconstruction.combinedToolArguments ? (
+        {session.reconstruction.toolCalls.length > 0 ? (
           <section className="subpanel">
-            <h4>Reconstructed tool arguments</h4>
-            <pre className="code-block">{session.reconstruction.combinedToolArguments}</pre>
+            <h4>Reconstructed tool calls</h4>
+            <div className="tool-call-list">
+              {session.reconstruction.toolCalls.map((toolCall) => (
+                <ToolCallCard key={toolCall.key} toolCall={toolCall} />
+              ))}
+            </div>
           </section>
         ) : null}
 
@@ -197,6 +202,19 @@ function KV({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ToolCallCard({ toolCall }: { toolCall: ProxyToolCall }) {
+  return (
+    <div className="tool-call-card">
+      <dl className="kv-grid">
+        <KV label="Name" value={toolCall.name ?? "unknown"} />
+        <KV label="Call ID" value={toolCall.id ?? "—"} />
+        <KV label="Index" value={toolCall.index === undefined ? "—" : String(toolCall.index)} />
+      </dl>
+      <pre className="code-block">{formatToolArguments(toolCall.argumentsText)}</pre>
+    </div>
+  );
+}
+
 function formatUsage(usage: ProxyUsage | null | undefined): Array<[string, string]> {
   return [
     ["input_tokens", formatNumber(usage?.input_tokens)],
@@ -223,5 +241,17 @@ function formatJson(value: unknown): string {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
+  }
+}
+
+function formatToolArguments(value: string): string {
+  if (value.length === 0) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
   }
 }
