@@ -1,3 +1,4 @@
+mod evaluation;
 mod run;
 
 use clap::Parser;
@@ -6,7 +7,7 @@ use time::OffsetDateTime;
 
 use orchestrator_core::config;
 use orchestrator_core::models::{BatchRunReference, BatchSummary, RunStatus};
-use orchestrator_core::test_selection::load_test_selection;
+use orchestrator_core::test_selection::{evaluator_image_tag, load_test_selection};
 use orchestrator_core::util::{batch_id, duration_ms, format_timestamp};
 
 #[derive(Debug, Parser)]
@@ -159,6 +160,7 @@ fn execute_batch(
 
     // Preflight
     let mut harness_image_ids = std::collections::BTreeMap::new();
+    let mut evaluator_image_ids = std::collections::BTreeMap::new();
     for harness in &harnesses {
         let profile = config
             .harnesses
@@ -175,7 +177,10 @@ fn execute_batch(
         config::preflight_model(model, profile)?;
     }
     for test in &tests {
-        load_test_selection(test)?;
+        let selection = load_test_selection(test)?;
+        let evaluator_image = evaluator_image_tag(test);
+        let evaluator_image_id = docker_runner::inspect_image(test, &evaluator_image)?;
+        evaluator_image_ids.insert(selection.name, evaluator_image_id);
     }
 
     // Execute runs in test/model/harness order
@@ -202,6 +207,7 @@ fn execute_batch(
                     harness_image_ids.get(harness).expect("preflight"),
                     model,
                     model_profile,
+                    evaluator_image_ids.get(test).map(String::as_str),
                     Some(test.as_str()),
                 )?;
 

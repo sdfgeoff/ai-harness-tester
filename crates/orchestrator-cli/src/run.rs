@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf, time::Instant};
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 
+use crate::evaluation::{evaluate_completed_run, write_skipped_evaluation};
 use orchestrator_core::{
     config::{Config, HarnessProfile, ModelProfile},
     models::{
@@ -32,6 +33,7 @@ pub fn execute_run(
     harness_image_id: &str,
     model_name: &str,
     model: &ModelProfile,
+    evaluator_image_id: Option<&str>,
     test: Option<&str>,
 ) -> Result<RunExecution, String> {
     let selected_test = test.map(load_test_selection).transpose()?;
@@ -163,6 +165,7 @@ pub fn execute_run(
                 },
             };
             orchestrator_core::models::write_results(&run_dir, &result)?;
+            write_skipped_evaluation(&run_dir)?;
             return Ok(RunExecution {
                 run_id,
                 run_dir_name: run_dir_name.clone(),
@@ -278,6 +281,7 @@ pub fn execute_run(
                 },
             };
             orchestrator_core::models::write_results(&run_dir, &result)?;
+            write_skipped_evaluation(&run_dir)?;
             return Ok(RunExecution {
                 run_id,
                 run_dir_name: run_dir_name.clone(),
@@ -334,9 +338,9 @@ pub fn execute_run(
         started_at: format_timestamp(started_at)?,
         finished_at: format_timestamp(finished_at)?,
         duration_ms: duration_ms(duration),
-        inputs: selected_test.map(|test| RunInputs {
-            initial_state_sha256: test.initial_state_sha256,
-            prompt_sha256: test.prompt_sha256,
+        inputs: selected_test.as_ref().map(|test| RunInputs {
+            initial_state_sha256: test.initial_state_sha256.clone(),
+            prompt_sha256: test.prompt_sha256.clone(),
         }),
         selection: RunSelection {
             test: test_name_owned.clone(),
@@ -363,6 +367,23 @@ pub fn execute_run(
     };
 
     orchestrator_core::models::write_results(&run_dir, &result)?;
+    match run_status {
+        RunStatus::Completed => {
+            let selected_test = selected_test
+                .as_ref()
+                .ok_or_else(|| "completed run missing selected test for evaluation".to_owned())?;
+            let evaluator_image_id = evaluator_image_id.ok_or_else(|| {
+                format!(
+                    "completed run '{}' missing resolved evaluator image id",
+                    selected_test.name
+                )
+            })?;
+            evaluate_completed_run(config, &run_id, &run_dir, selected_test, evaluator_image_id)?;
+        }
+        _ => {
+            write_skipped_evaluation(&run_dir)?;
+        }
+    }
     println!("wrote {}", run_dir.join("results.json").display());
 
     match run_status {
