@@ -28,6 +28,15 @@ export function resolveBatchArtifactPath(batchId: string, relativePath: string):
   return normalizeArtifactPath(`/results/${batchId}/${relativePath}`);
 }
 
+export function resolveRunArtifactPath(
+  batchId: string,
+  resultsPath: string,
+  runRelativePath: string,
+): string {
+  const runDirectory = resultsPath.replace(/\/results\.json$/, "");
+  return resolveBatchArtifactPath(batchId, `${runDirectory}/${runRelativePath}`);
+}
+
 export function normalizeArtifactPath(path: string): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
