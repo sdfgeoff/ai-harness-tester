@@ -217,6 +217,7 @@ fn execute_batch(
                 run_references.push(BatchRunReference {
                     run_id: execution.run_id.clone(),
                     results_path: format!("runs/{}/results.json", execution.run_dir_name),
+                    evaluation_path: format!("runs/{}/evaluation.json", execution.run_dir_name),
                 });
             }
         }

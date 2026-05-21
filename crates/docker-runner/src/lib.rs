@@ -72,15 +72,6 @@ pub struct RunResult {
 }
 
 pub fn run(config: &RunConfig) -> Result<RunResult, String> {
-    let log = Arc::new(Mutex::new(File::create(&config.log_path).map_err(
-        |error| {
-            format!(
-                "failed to create container log {}: {error}",
-                config.log_path.display()
-            )
-        },
-    )?));
-
     let mut command = Command::new("docker");
     command.args(build_docker_args(config)?);
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -88,6 +79,17 @@ pub fn run(config: &RunConfig) -> Result<RunResult, String> {
     let mut child = command
         .spawn()
         .map_err(|error| format!("failed to start docker: {error}"))?;
+
+    let log = Arc::new(Mutex::new(File::create(&config.log_path).map_err(
+        |error| {
+            let _ = child.kill();
+            let _ = child.wait();
+            format!(
+                "failed to create container log {}: {error}",
+                config.log_path.display()
+            )
+        },
+    )?));
 
     let stdout = child
         .stdout

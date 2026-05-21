@@ -1,5 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::{fs::File, path::Path};
 
 // ── Run result models ───────────────────────────────────────────────────────
@@ -233,6 +234,7 @@ pub struct BatchSummary {
 pub struct BatchRunReference {
     pub run_id: String,
     pub results_path: String,
+    pub evaluation_path: String,
 }
 
 pub fn write_batch_summary(batch_dir: &Path, summary: &BatchSummary) -> Result<(), String> {
@@ -268,8 +270,15 @@ pub fn write_results(run_dir: &Path, result: &RunResult) -> Result<(), String> {
 #[serde(rename_all = "snake_case")]
 pub enum EvaluationStatus {
     Skipped,
-    Completed,
+    Scored,
     Failed,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EvaluationScore {
+    pub score: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub breakdown: Option<BTreeMap<String, f64>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -285,6 +294,8 @@ pub struct EvaluationResult {
     pub duration_ms: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub evaluator: Option<ResolvedEvaluator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<EvaluationScore>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<RunError>,
 }
@@ -322,6 +333,7 @@ mod tests {
             finished_at: None,
             duration_ms: None,
             evaluator: None,
+            result: None,
             error: None,
         };
 
@@ -336,9 +348,9 @@ mod tests {
     }
 
     #[test]
-    fn serializes_completed_evaluation_without_score() {
+    fn serializes_scored_evaluation() {
         let evaluation = EvaluationResult {
-            status: EvaluationStatus::Completed,
+            status: EvaluationStatus::Scored,
             reason: None,
             started_at: Some("2026-05-21T00:00:00Z".to_owned()),
             finished_at: Some("2026-05-21T00:00:01Z".to_owned()),
@@ -347,6 +359,10 @@ mod tests {
                 image: "harness-test-evaluator/smoke:latest".to_owned(),
                 image_id: Some("sha256:123".to_owned()),
             }),
+            result: Some(EvaluationScore {
+                score: 0.9,
+                breakdown: Some(BTreeMap::new()),
+            }),
             error: None,
         };
 
@@ -354,13 +370,17 @@ mod tests {
         assert_eq!(
             value,
             serde_json::json!({
-                "status": "completed",
+                "status": "scored",
                 "started_at": "2026-05-21T00:00:00Z",
                 "finished_at": "2026-05-21T00:00:01Z",
                 "duration_ms": 1000,
                 "evaluator": {
                     "image": "harness-test-evaluator/smoke:latest",
                     "image_id": "sha256:123"
+                },
+                "result": {
+                    "score": 0.9,
+                    "breakdown": {}
                 }
             })
         );
@@ -378,6 +398,7 @@ mod tests {
                 image: "harness-test-evaluator/smoke:latest".to_owned(),
                 image_id: Some("sha256:123".to_owned()),
             }),
+            result: None,
             error: Some(RunError {
                 kind: "timed_out".to_owned(),
                 message: "Evaluation exceeded timeout of 300 seconds".to_owned(),
